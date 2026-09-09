@@ -1025,6 +1025,22 @@ export class EditorApp {
     }
 
     const btnDup = document.createElement('button');
+    if (active.type === 'activeSelection') {
+      const btnGroup = document.createElement('button');
+      btnGroup.className = 'mobile-quick-btn';
+      btnGroup.innerHTML = `${svg('Group', 14)} Group`;
+      btnGroup.title = 'Group';
+      btnGroup.onclick = () => { this.ops.group(); this.updateMobileQuickBar(); };
+      quickBar.appendChild(btnGroup);
+    } else if (active.type === 'group') {
+      const btnUngroup = document.createElement('button');
+      btnUngroup.className = 'mobile-quick-btn';
+      btnUngroup.innerHTML = `${svg('Ungroup', 14)} Ungroup`;
+      btnUngroup.title = 'Ungroup';
+      btnUngroup.onclick = () => { this.ops.ungroup(); this.updateMobileQuickBar(); };
+      quickBar.appendChild(btnUngroup);
+    }
+
     btnDup.className = 'mobile-quick-btn';
     btnDup.innerHTML = svg('Copy', 14);
     btnDup.title = 'Duplicate';
@@ -1633,7 +1649,7 @@ export class EditorApp {
       { id: 'line', label: 'Line', icon: svg('Minus', 24) },
       { id: 'triangle', label: 'Triangle', icon: svg('Triangle', 24) },
       { id: 'star', label: 'Star', icon: svg('Star', 24) },
-      { id: 'polygon', label: 'Polygon', icon: svg('Hexagon', 24) },
+      { id: 'hexagon', label: 'Polygon', icon: svg('Hexagon', 24) },
       { id: 'heart', label: 'Heart', icon: svg('Heart', 24) }
     ];
 
