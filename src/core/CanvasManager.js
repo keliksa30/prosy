@@ -75,6 +75,17 @@ export class CanvasManager {
       stopContextMenu: true // we render our own context menu
     });
 
+    // Touch-friendly selection controls on mobile/tablet screens
+    if (typeof window !== 'undefined' && window.innerWidth <= 768 && fabric.FabricObject) {
+      fabric.FabricObject.prototype.cornerSize = 20;
+      fabric.FabricObject.prototype.touchCornerSize = 34;
+      fabric.FabricObject.prototype.transparentCorners = false;
+      fabric.FabricObject.prototype.cornerColor = '#7b46f8';
+      fabric.FabricObject.prototype.cornerStrokeColor = '#ffffff';
+      fabric.FabricObject.prototype.borderColor = '#7b46f8';
+      fabric.FabricObject.prototype.borderScaleFactor = 2;
+    }
+
     // extra on-canvas controls (rect corner-radius handle) follow every rect
     installRadiusControls(this.canvas);
 
@@ -250,7 +261,8 @@ export class CanvasManager {
 
   fitToScreen(keepPercentAtHundred = false) {
     if (!this.canvas || !this.viewport) return;
-    const padding = 48;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    const padding = isMobile ? 12 : 48;
     const vw = Math.max(100, this.viewport.clientWidth - padding * 2);
     const vh = Math.max(100, this.viewport.clientHeight - padding * 2);
     let z = Math.min(vw / this.PAGE_W, vh / this.PAGE_H);
@@ -317,6 +329,64 @@ export class CanvasManager {
     viewport.addEventListener('mousedown', down);
     viewport.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
+
+    // --- Touch Pinch-to-Zoom & Pan for Mobile ---
+    let touchStartDist = 0;
+    let touchStartZoom = 1;
+    let touchLastCenter = null;
+
+    viewport.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        touchStartDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        touchStartZoom = this.getZoom();
+        touchLastCenter = {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2
+        };
+      }
+    }, { passive: false });
+
+    viewport.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2 && touchStartDist > 0 && touchLastCenter) {
+        e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        const center = {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2
+        };
+
+        const dx = center.x - touchLastCenter.x;
+        const dy = center.y - touchLastCenter.y;
+        this.panBy(dx, dy);
+
+        const scale = dist / touchStartDist;
+        const newZoom = Math.min(this.MAX_ZOOM, Math.max(this.MIN_ZOOM, touchStartZoom * scale));
+        const rect = viewport.getBoundingClientRect();
+        const anchor = { x: center.x - rect.left, y: center.y - rect.top };
+        this.setZoom(newZoom * 100, anchor);
+
+        touchLastCenter = center;
+      }
+    }, { passive: false });
+
+    viewport.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) {
+        touchStartDist = 0;
+        touchLastCenter = null;
+      }
+    });
+
+    // Auto-fit on mobile orientation change
+    window.addEventListener('resize', () => {
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        this.fitToScreen();
+      }
+    });
 
     // Clicking the gray workspace around the page deselects everything.
     viewport.addEventListener('mousedown', (e) => {

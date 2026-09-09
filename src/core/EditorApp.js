@@ -169,17 +169,20 @@ export class EditorApp {
         </div>
 
         <div style="display:flex;align-items:center;gap:6px;">
-          <button class="btn btn-ghost appbar-btn" id="btn-templates" title="Template library">
+          <button class="btn btn-ghost appbar-btn desktop-only" id="btn-templates" title="Template library">
             ${svg('LayoutTemplate', 15)} Templates
           </button>
-          <button class="btn btn-ghost appbar-btn" id="btn-present" title="Presentation deck full-screen (F)">
+          <button class="btn btn-ghost appbar-btn desktop-only" id="btn-present" title="Presentation deck full-screen (F)">
             ${svg('Play', 14)} Present
           </button>
-          <button class="btn btn-ghost appbar-btn" id="btn-open" title="Open a .prs project file">
+          <button class="btn btn-ghost appbar-btn desktop-only" id="btn-open" title="Open a .prs project file">
             ${svg('FolderOpen', 15)} Open
           </button>
           <button class="btn btn-primary appbar-btn" id="btn-export" title="Export & save (Cmd/Ctrl+E)">
-            ${svg('Download', 15)} Export
+            ${svg('Download', 15)} <span class="desktop-only">Export</span>
+          </button>
+          <button class="icobtn mobile-only" id="btn-mobile-more" title="More options">
+            ${svg('MoreVertical', 17)}
           </button>
         </div>
       </div>
@@ -297,6 +300,59 @@ export class EditorApp {
       </div>
     </div>
 
+    <!-- Mobile Quick Actions Bar (appears when object selected) -->
+    <div class="mobile-quick-actions" id="mobile-quick-actions">
+      <button class="mobile-quick-btn" id="mq-btn-color" title="Color">${svg('Palette', 14)} <span>Color</span></button>
+      <button class="mobile-quick-btn" id="mq-btn-size-down" title="Smaller">${svg('Minus', 13)}</button>
+      <button class="mobile-quick-btn" id="mq-btn-size-up" title="Larger">${svg('Plus', 13)}</button>
+      <button class="mobile-quick-btn" id="mq-btn-duplicate" title="Duplicate">${svg('Copy', 14)}</button>
+      <button class="mobile-quick-btn" id="mq-btn-delete" title="Delete" style="color:var(--danger);">${svg('Trash2', 14)}</button>
+      <button class="mobile-quick-btn" id="mq-btn-edit" title="All Properties">${svg('SlidersHorizontal', 14)} <span>Edit</span></button>
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar (Canva style) -->
+    <div class="mobile-bottom-bar" id="mobile-bottom-bar">
+      <button class="mobile-bar-btn" id="mb-btn-pages">
+        ${svg('Files', 18)}
+        <span id="mb-page-lbl">Slide 1/1</span>
+      </button>
+
+      <button class="mobile-bar-btn fab-btn" id="mb-btn-add">
+        ${svg('Plus', 18)}
+        <span>Add</span>
+      </button>
+
+      <button class="mobile-bar-btn" id="mb-btn-layers">
+        ${svg('Layers', 18)}
+        <span>Layers</span>
+      </button>
+
+      <button class="mobile-bar-btn" id="mb-btn-design">
+        ${svg('SlidersHorizontal', 18)}
+        <span>Design</span>
+      </button>
+    </div>
+
+    <!-- Mobile Bottom Sheet & Overlay -->
+    <div class="mobile-sheet-overlay" id="mobile-sheet-overlay"></div>
+    <div class="mobile-bottom-sheet" id="mobile-bottom-sheet">
+      <div class="mobile-sheet-handle-area" id="mobile-sheet-handle-area">
+        <div class="mobile-sheet-handle"></div>
+      </div>
+      <div class="mobile-sheet-header">
+        <span id="mobile-sheet-title">Options</span>
+        <button class="icobtn" id="mobile-sheet-close">${svg('X', 18)}</button>
+      </div>
+      <div class="mobile-sheet-content" id="mobile-sheet-content"></div>
+    </div>
+
+    <!-- Mobile More Menu Dropdown -->
+    <div class="mobile-more-menu" id="mobile-more-menu" style="display:none">
+      <button class="mobile-more-item" id="mmm-btn-templates">${svg('LayoutTemplate', 16)} <span>Templates</span></button>
+      <button class="mobile-more-item" id="mmm-btn-present">${svg('Play', 16)} <span>Present Deck</span></button>
+      <button class="mobile-more-item" id="mmm-btn-open">${svg('FolderOpen', 16)} <span>Open File</span></button>
+    </div>
+
     <div class="toast-stack" id="toast-stack"></div>
     `;
   }
@@ -307,10 +363,13 @@ export class EditorApp {
 
   refreshPageChrome() {
     const el = document.getElementById('status-page');
+    const mobEl = document.getElementById('mb-page-lbl');
     const pm = this.pageManager;
-    if (el && pm) {
+    if (pm) {
       const cur = pm.currentIndex + 1;
-      el.textContent = `Page ${cur} of ${pm.pages.length}`;
+      const text = `Page ${cur} of ${pm.pages.length}`;
+      if (el) el.textContent = text;
+      if (mobEl) mobEl.textContent = `Slide ${cur}/${pm.pages.length}`;
     }
   }
 
@@ -359,6 +418,7 @@ export class EditorApp {
     this.setupIconsMenu();
     this.setupElementsMenu();
     this.setupPhotosMenu();
+    this.setupMobileUI();
 
     document.getElementById('btn-add-page').onclick = () => this.ops.addPageAfterCurrent();
 
@@ -769,6 +829,331 @@ export class EditorApp {
     } else {
       this.toolManager.setTool(sc.tool);
     }
+  }
+
+  /* ================================================================== */
+  /* MOBILE INTERFACE & BOTTOM SHEETS                                   */
+  /* ================================================================== */
+
+  setupMobileUI() {
+    // Overflow more menu on mobile
+    const moreBtn = document.getElementById('btn-mobile-more');
+    const moreMenu = document.getElementById('mobile-more-menu');
+    if (moreBtn && moreMenu) {
+      moreBtn.onclick = (e) => {
+        e.stopPropagation();
+        moreMenu.style.display = moreMenu.style.display === 'none' ? 'flex' : 'none';
+      };
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#mobile-more-menu') && !e.target.closest('#btn-mobile-more')) {
+          moreMenu.style.display = 'none';
+        }
+      });
+      document.getElementById('mmm-btn-templates').onclick = () => {
+        moreMenu.style.display = 'none';
+        this.templateChooser.show({ mode: 'pack' });
+      };
+      document.getElementById('mmm-btn-present').onclick = () => {
+        moreMenu.style.display = 'none';
+        this.presentationMode.start();
+      };
+      document.getElementById('mmm-btn-open').onclick = () => {
+        moreMenu.style.display = 'none';
+        this.projectFileManager.triggerLoad();
+      };
+    }
+
+    // Sheet close & overlay dismiss
+    const overlay = document.getElementById('mobile-sheet-overlay');
+    const closeBtn = document.getElementById('mobile-sheet-close');
+    if (overlay) overlay.onclick = () => this.closeMobileSheet();
+    if (closeBtn) closeBtn.onclick = () => this.closeMobileSheet();
+
+    // Bottom Navigation buttons
+    document.getElementById('mb-btn-pages')?.addEventListener('click', () => this.openMobilePagesSheet());
+    document.getElementById('mb-btn-add')?.addEventListener('click', () => this.openMobileAddSheet());
+    document.getElementById('mb-btn-layers')?.addEventListener('click', () => this.openMobileLayersSheet());
+    document.getElementById('mb-btn-design')?.addEventListener('click', () => this.openMobilePropertiesSheet());
+
+    // Selection changes for Mobile Quick Actions bar
+    const canvas = this.canvasManager?.canvas;
+    const quickBar = document.getElementById('mobile-quick-actions');
+    if (canvas && quickBar) {
+      const updateQuickBar = () => {
+        const active = canvas.getActiveObject();
+        if (active) {
+          quickBar.classList.add('visible');
+        } else {
+          quickBar.classList.remove('visible');
+        }
+      };
+      canvas.on('selection:created', updateQuickBar);
+      canvas.on('selection:updated', updateQuickBar);
+      canvas.on('selection:cleared', updateQuickBar);
+
+      // Quick bar buttons
+      document.getElementById('mq-btn-duplicate')?.addEventListener('click', () => this.ops.duplicate());
+      document.getElementById('mq-btn-delete')?.addEventListener('click', () => this.ops.deleteSelected());
+      document.getElementById('mq-btn-edit')?.addEventListener('click', () => this.openMobilePropertiesSheet());
+      document.getElementById('mq-btn-color')?.addEventListener('click', () => this.openMobilePropertiesSheet());
+      document.getElementById('mq-btn-size-down')?.addEventListener('click', () => {
+        const obj = canvas.getActiveObject();
+        if (obj) {
+          if (obj.fontSize) {
+            obj.set('fontSize', Math.max(8, (obj.fontSize || 40) - 2));
+            if (obj.initDimensions) obj.initDimensions();
+            if (obj.setCoords) obj.setCoords();
+          } else {
+            obj.scale((obj.scaleX || 1) * 0.95);
+            obj.setCoords();
+          }
+          canvas.requestRenderAll();
+          this.historyManager.saveState();
+        }
+      });
+      document.getElementById('mq-btn-size-up')?.addEventListener('click', () => {
+        const obj = canvas.getActiveObject();
+        if (obj) {
+          if (obj.fontSize) {
+            obj.set('fontSize', Math.min(300, (obj.fontSize || 40) + 2));
+            if (obj.initDimensions) obj.initDimensions();
+            if (obj.setCoords) obj.setCoords();
+          } else {
+            obj.scale((obj.scaleX || 1) * 1.05);
+            obj.setCoords();
+          }
+          canvas.requestRenderAll();
+          this.historyManager.saveState();
+        }
+      });
+    }
+  }
+
+  openMobileSheet(title, content) {
+    const titleEl = document.getElementById('mobile-sheet-title');
+    const contentEl = document.getElementById('mobile-sheet-content');
+    const sheet = document.getElementById('mobile-bottom-sheet');
+    const overlay = document.getElementById('mobile-sheet-overlay');
+    if (!sheet || !contentEl) return;
+
+    if (titleEl) titleEl.textContent = title;
+    contentEl.innerHTML = '';
+    if (typeof content === 'string') {
+      contentEl.innerHTML = content;
+    } else if (content instanceof HTMLElement) {
+      contentEl.appendChild(content);
+    }
+
+    overlay?.classList.add('active');
+    sheet.classList.add('open');
+  }
+
+  closeMobileSheet() {
+    const sheet = document.getElementById('mobile-bottom-sheet');
+    const overlay = document.getElementById('mobile-sheet-overlay');
+    sheet?.classList.remove('open');
+    overlay?.classList.remove('active');
+
+    // Restore any mounted panels back to desktop dock
+    if (this._activeMobilePanel === 'properties') {
+      const designPane = document.getElementById('dock-body-design');
+      if (designPane) this.panels.properties?.mount(designPane);
+    } else if (this._activeMobilePanel === 'layers') {
+      const layersPane = document.getElementById('dock-body-layers');
+      if (layersPane) this.panels.layers?.mount(layersPane);
+    }
+    this._activeMobilePanel = null;
+  }
+
+  openMobilePropertiesSheet() {
+    this._activeMobilePanel = 'properties';
+    const contentEl = document.getElementById('mobile-sheet-content');
+    if (contentEl && this.panels.properties) {
+      this.panels.properties.mount(contentEl);
+    }
+    this.openMobileSheet('Design & Properties', contentEl);
+  }
+
+  openMobileLayersSheet() {
+    this._activeMobilePanel = 'layers';
+    const contentEl = document.getElementById('mobile-sheet-content');
+    if (contentEl && this.panels.layers) {
+      this.panels.layers.mount(contentEl);
+    }
+    this.openMobileSheet('Layers', contentEl);
+  }
+
+  openMobilePagesSheet() {
+    const pm = this.pageManager;
+    if (!pm) return;
+    const container = document.createElement('div');
+    container.style.cssText = 'display:flex;flex-direction:column;gap:14px;';
+
+    const strip = document.createElement('div');
+    strip.className = 'mobile-pages-strip';
+
+    pm.pages.forEach((page, idx) => {
+      const card = document.createElement('div');
+      card.className = 'mobile-page-thumb-card';
+      const isActive = idx === pm.currentIndex;
+      card.innerHTML = `
+        <div class="mobile-page-thumb-box ${isActive ? 'active' : ''}">
+          ${page.thumb ? `<img src="${page.thumb}" alt="">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-weight:700;">${idx + 1}</div>`}
+        </div>
+        <div class="mobile-page-title">${idx + 1}. ${escapeHtml(page.title || 'Untitled')}</div>
+      `;
+      card.onclick = () => {
+        pm.switchToPage(idx);
+        this.closeMobileSheet();
+      };
+      strip.appendChild(card);
+    });
+
+    container.appendChild(strip);
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-primary';
+    addBtn.style.cssText = 'width:100%;justify-content:center;padding:11px;font-size:13px;';
+    addBtn.innerHTML = `${svg('Plus', 16)} Add New Slide`;
+    addBtn.onclick = () => {
+      this.ops.addPageAfterCurrent();
+      this.closeMobileSheet();
+    };
+    container.appendChild(addBtn);
+
+    this.openMobileSheet('Slides / Pages (' + pm.pages.length + ')', container);
+  }
+
+  openMobileAddSheet() {
+    const container = document.createElement('div');
+    container.className = 'mobile-add-grid';
+
+    const items = [
+      {
+        icon: svg('Type', 20),
+        title: 'Text',
+        desc: 'Heading or paragraph text',
+        action: () => {
+          this.closeMobileSheet();
+          this.toolManager.setTool('text');
+          this.toast('Tap anywhere on canvas to place text');
+        }
+      },
+      {
+        icon: svg('Square', 20),
+        title: 'Shapes',
+        desc: 'Rectangles, circles, lines',
+        action: () => {
+          this.openMobileShapesSubSheet();
+        }
+      },
+      {
+        icon: svg('Camera', 20),
+        title: 'Photos',
+        desc: 'Free stock photos & uploads',
+        action: () => {
+          this.openMobilePhotosSheet();
+        }
+      },
+      {
+        icon: svg('Sparkles', 20),
+        title: 'Icons',
+        desc: 'Lucide & brand logos',
+        action: () => {
+          this.openMobileIconsSheet();
+        }
+      },
+      {
+        icon: svg('LayoutGrid', 20),
+        title: 'Elements',
+        desc: 'Cards, buttons & blocks',
+        action: () => {
+          this.openMobileElementsSheet();
+        }
+      },
+      {
+        icon: svg('LayoutTemplate', 20),
+        title: 'Templates',
+        desc: 'Explore portfolio packs',
+        action: () => {
+          this.closeMobileSheet();
+          this.templateChooser.show({ mode: 'pack' });
+        }
+      }
+    ];
+
+    items.forEach(it => {
+      const card = document.createElement('button');
+      card.className = 'mobile-add-card';
+      card.innerHTML = `
+        <div class="mobile-add-card-icon">${it.icon}</div>
+        <div class="mobile-add-card-title">${it.title}</div>
+        <div class="mobile-add-card-desc">${it.desc}</div>
+      `;
+      card.onclick = () => it.action();
+      container.appendChild(card);
+    });
+
+    this.openMobileSheet('Add to Slide', container);
+  }
+
+  openMobileShapesSubSheet() {
+    const container = document.createElement('div');
+    container.style.cssText = 'display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;padding:6px 0;';
+
+    const shapes = [
+      { id: 'rect', label: 'Rectangle', icon: svg('Square', 24) },
+      { id: 'ellipse', label: 'Circle', icon: svg('Circle', 24) },
+      { id: 'line', label: 'Line', icon: svg('Minus', 24) },
+      { id: 'triangle', label: 'Triangle', icon: svg('Triangle', 24) },
+      { id: 'star', label: 'Star', icon: svg('Star', 24) },
+      { id: 'polygon', label: 'Polygon', icon: svg('Hexagon', 24) },
+      { id: 'heart', label: 'Heart', icon: svg('Heart', 24) }
+    ];
+
+    shapes.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'mobile-add-card';
+      btn.style.cssText = 'align-items:center;text-align:center;padding:14px 6px;';
+      btn.innerHTML = `
+        <div style="color:var(--text-primary);display:flex;align-items:center;justify-content:center;">${s.icon}</div>
+        <div style="font-size:11.5px;font-weight:600;color:var(--text-secondary);margin-top:4px;">${s.label}</div>
+      `;
+      btn.onclick = () => {
+        this.closeMobileSheet();
+        this.toolManager.setTool('shape');
+        const st = this.toolManager.getTool('shape');
+        if (st) st.setShape(s.id);
+        this.toast(`Drag on canvas to draw ${s.label}`);
+      };
+      container.appendChild(btn);
+    });
+
+    this.openMobileSheet('Choose Shape', container);
+  }
+
+  openMobilePhotosSheet() {
+    const contentEl = document.getElementById('mobile-sheet-content');
+    if (contentEl && this.panels.photos) {
+      this.panels.photos.mount(contentEl);
+    }
+    this.openMobileSheet('Stock Photos (Unsplash)', contentEl);
+  }
+
+  openMobileIconsSheet() {
+    const contentEl = document.getElementById('mobile-sheet-content');
+    if (contentEl && this.panels.icons) {
+      this.panels.icons.mount(contentEl);
+    }
+    this.openMobileSheet('Icons & Logos', contentEl);
+  }
+
+  openMobileElementsSheet() {
+    const contentEl = document.getElementById('mobile-sheet-content');
+    if (contentEl && this.panels.elements) {
+      this.panels.elements.mount(contentEl);
+    }
+    this.openMobileSheet('UI Elements & Blocks', contentEl);
   }
 
   /* -------------------- shortcuts help -------------------- */

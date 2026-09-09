@@ -897,3 +897,32 @@ input[type='range'].range:active::-webkit-slider-thumb { transform: scale(1.3); 
   background: rgba(255, 255, 255, 0.15);
   margin: 0 2px;
 }
+
+/* ================= Mobile Modals & Dialogs ================= */
+@media (max-width: 768px) {
+  .modal-content, #template-chooser-modal .modal-content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 88vh !important;
+    padding: 16px !important;
+    border-radius: var(--radius-md) !important;
+  }
+  .tc-container {
+    flex-direction: column !important;
+    min-height: auto !important;
+    gap: 14px !important;
+  }
+  .tc-sidebar {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding-right: 0 !important;
+    padding-bottom: 12px !important;
+    flex: none !important;
+  }
+  .tc-packs-list {
+    max-height: 25vh !important;
+  }
+  .export-modal-body {
+    flex-direction: column !important;
+  }
+}
