@@ -384,6 +384,7 @@ export class PhotosPanel {
         await ops.fillPlaceholderWithImage(hit, url);
         this.app.toast?.('Photo clipped into selected shape');
         if (this.app._closePhotosMenu) this.app._closePhotosMenu();
+        if (this.app.closeMobileSheet) this.app.closeMobileSheet();
         return;
       }
     }
@@ -412,8 +413,9 @@ export class PhotosPanel {
       this.canvas.setActiveObject(img);
       this.canvas.requestRenderAll();
       this.app.historyManager?.saveState();
-      this.app.toast?.('Photo added to canvas');
+      this.app.toast?.('Photo added to slide');
       if (this.app._closePhotosMenu) this.app._closePhotosMenu();
+      if (this.app.closeMobileSheet) this.app.closeMobileSheet();
     } catch (e) {
       console.error('Failed to insert stock photo', e);
       this.app.toast?.('Could not load photo', true);

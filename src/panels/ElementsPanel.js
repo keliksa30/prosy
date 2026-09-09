@@ -142,9 +142,12 @@ export class ElementsPanel {
         this.app.historyManager.saveState();
         document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
       }
-      this.app.toast?.(`${def.name} added to page`);
+      this.app.toast?.(`${def.name} added to slide`);
       if (this.app._closeElementsMenu) this.app._closeElementsMenu();
-      if (this.app.dock) this.app.dock.show('design');
+      if (this.app.closeMobileSheet) this.app.closeMobileSheet();
+      if (this.app.dock && typeof window !== 'undefined' && window.innerWidth > 768) {
+        this.app.dock.show('design');
+      }
     } catch (e) {
       console.error('insertElement failed', e);
       this.app.toast?.('Could not add element', true);

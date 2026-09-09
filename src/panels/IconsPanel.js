@@ -253,9 +253,14 @@ export class IconsPanel {
       this.canvas.add(obj);
       this.canvas.setActiveObject(obj);
       this.canvas.requestRenderAll();
+      this.app.historyManager?.saveState();
+      this.app.toast?.(`${name} icon added to slide`);
       if (this.app._closeIconsMenu) this.app._closeIconsMenu();
-      // jump to the Design tab so styling is one click away
-      if (this.app.dock) this.app.dock.show('design');
+      if (this.app.closeMobileSheet) this.app.closeMobileSheet();
+      // jump to the Design tab so styling is one click away on desktop
+      if (this.app.dock && typeof window !== 'undefined' && window.innerWidth > 768) {
+        this.app.dock.show('design');
+      }
     } catch (e) {
       console.error('Failed to add icon', e);
     }
