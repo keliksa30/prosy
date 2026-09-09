@@ -73,10 +73,29 @@ export class LayersPanel {
     toolbar.innerHTML = `
       <span>${objects.length} ${objects.length === 1 ? 'layer' : 'layers'}</span>
       <span style="flex:1"></span>
-      <button class="icobtn" id="layers-collapse-all" title="Collapse all">${svg('ChevronsDownUp', 14)}</button>
-      <button class="icobtn" id="layers-select-all" title="Select all (Cmd/Ctrl+A)">${svg('SquareDashed', 14)}</button>
+      <button class="icobtn" data-action="forward" title="Bring forward">${svg('ChevronUp', 14)}</button>
+      <button class="icobtn" data-action="backward" title="Send backward">${svg('ChevronDown', 14)}</button>
+      <button class="icobtn" data-action="collapse" title="Collapse all">${svg('ChevronsDownUp', 14)}</button>
+      <button class="icobtn" data-action="select-all" title="Select all (Cmd/Ctrl+A)">${svg('SquareDashed', 14)}</button>
     `;
     this.host.appendChild(toolbar);
+
+    toolbar.querySelector('[data-action="forward"]')?.addEventListener('click', () => {
+      this.app.ops?.arrange('forward');
+      this.render();
+    });
+    toolbar.querySelector('[data-action="backward"]')?.addEventListener('click', () => {
+      this.app.ops?.arrange('backward');
+      this.render();
+    });
+    toolbar.querySelector('[data-action="select-all"]')?.addEventListener('click', () => {
+      this.app.keyboardManager?.selectAll();
+    });
+    toolbar.querySelector('[data-action="collapse"]')?.addEventListener('click', () => {
+      this.canvas.discardActiveObject();
+      this.canvas.requestRenderAll();
+      this.render();
+    });
 
     const list = document.createElement('div');
     list.className = 'layers-list';
@@ -95,6 +114,13 @@ export class LayersPanel {
       row.className = 'layer-row' + (active.includes(obj) ? ' active' : '') + (obj.visible === false ? ' hidden' : '');
       row.draggable = true;
       row.dataset.sceneIndex = i;
+
+      // Dedicated drag handle for touch (mobile) & mouse (desktop)
+      const handle = document.createElement('span');
+      handle.className = 'layer-handle';
+      handle.title = 'Drag to reorder';
+      handle.innerHTML = svg('GripVertical', 14);
+      row.appendChild(handle);
 
       const ic = document.createElement('span');
       ic.className = 'layer-typeic';
@@ -122,7 +148,7 @@ export class LayersPanel {
 
       // --- interactions ---
       row.addEventListener('click', (e) => {
-        if (e.target.closest('.layer-act')) return;
+        if (e.target.closest('.layer-act') || e.target.closest('.layer-handle')) return;
         if (obj.selectable === false && obj._userLocked) return;
         const multi = e.shiftKey || e.metaKey || e.ctrlKey;
         if (multi && active.includes(obj)) {
@@ -183,8 +209,7 @@ export class LayersPanel {
         this.render();
       });
 
-      // drag reorder — target recorded as {scene, before} from the row
-      // hovered, not from DOM position (the dragged row stays in the DOM).
+      // --- HTML5 desktop drag reorder ---
       row.addEventListener('dragstart', (e) => {
         this._dragIdx = i;
         row.classList.add('dragging');
@@ -210,18 +235,84 @@ export class LayersPanel {
         this._drop = { scene: parseInt(row.dataset.sceneIndex, 10), before };
       });
 
+      // --- Mobile Touch Drag Reorder ---
+      handle.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const fromIdx = parseInt(row.dataset.sceneIndex, 10);
+        this._touchDragIdx = fromIdx;
+        this._touchDragRow = row;
+        row.classList.add('dragging');
+        row.classList.add('touch-active');
+        this._clearMarks();
+
+        const onTouchMove = (ev) => {
+          if (this._touchDragIdx === null) return;
+          ev.preventDefault();
+          const t = ev.touches[0];
+
+          // Auto-scroll list if dragging near container edges
+          const listBox = list.getBoundingClientRect();
+          if (t.clientY < listBox.top + 40) {
+            list.scrollTop -= 8;
+          } else if (t.clientY > listBox.bottom - 40) {
+            list.scrollTop += 8;
+          }
+
+          const el = document.elementFromPoint(t.clientX, t.clientY);
+          if (!el) return;
+
+          const targetRow = el.closest('.layer-row');
+          const dropend = el.closest('.layer-dropend');
+
+          this._clearMarks();
+
+          if (targetRow && targetRow !== this._touchDragRow) {
+            const targetIdx = parseInt(targetRow.dataset.sceneIndex, 10);
+            const rect = targetRow.getBoundingClientRect();
+            const before = t.clientY < rect.top + rect.height / 2;
+            const mark = document.createElement('div');
+            mark.className = 'layer-dropmark';
+            if (before) targetRow.before(mark); else targetRow.after(mark);
+            this._drop = { scene: targetIdx, before };
+          } else if (dropend) {
+            const mark = document.createElement('div');
+            mark.className = 'layer-dropmark';
+            dropend.appendChild(mark);
+            this._drop = { scene: 0, before: false };
+          }
+        };
+
+        const onTouchEnd = () => {
+          window.removeEventListener('touchmove', onTouchMove);
+          window.removeEventListener('touchend', onTouchEnd);
+          window.removeEventListener('touchcancel', onTouchEnd);
+
+          row.classList.remove('dragging');
+          row.classList.remove('touch-active');
+          const drop = this._drop;
+          const f = this._touchDragIdx;
+
+          this._touchDragIdx = null;
+          this._touchDragRow = null;
+          this._drop = null;
+          this._clearMarks();
+
+          if (f !== null && drop) {
+            this._executeReorder(f, drop);
+          }
+        };
+
+        window.addEventListener('touchmove', onTouchMove, { passive: false });
+        window.addEventListener('touchend', onTouchEnd);
+        window.addEventListener('touchcancel', onTouchEnd);
+      }, { passive: false });
+
       list.appendChild(row);
     }
     list.appendChild(Object.assign(document.createElement('div'), { className: 'layer-dropend' }));
-
-    document.getElementById('layers-select-all')?.addEventListener('click', () => {
-      this.app.keyboardManager.selectAll();
-    });
-    document.getElementById('layers-collapse-all')?.addEventListener('click', () => {
-      this.canvas.discardActiveObject();
-      this.canvas.requestRenderAll();
-      this.render();
-    });
   }
 
   _clearMarks() {
@@ -250,12 +341,17 @@ export class LayersPanel {
     this._drop = null;
     this._clearMarks();
     if (!drop) return;
+    this._executeReorder(f, drop);
+  }
+
+  _executeReorder(f, drop) {
+    if (!drop || f === null || f === undefined) return;
 
     const canvas = this.canvas;
     const obj = canvas.getObjects()[f];
     if (!obj) return;
 
-    const s = drop.scene;            // hovered row's scene index (pre-removal)
+    const s = drop.scene; // hovered row's scene index (pre-removal)
     // no-op when the object already sits directly above/below the target
     if (drop.before && f === s + 1) return;
     if (!drop.before && f === s - 1) return;
@@ -271,7 +367,8 @@ export class LayersPanel {
     canvas.insertAt(k, obj);
     canvas.setActiveObject(obj);
     canvas.requestRenderAll();
-    this.app.historyManager.saveState();
+    this.app.historyManager?.saveState();
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
     this.render();
   }
 }
