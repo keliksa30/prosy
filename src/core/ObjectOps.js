@@ -310,23 +310,42 @@ export class ObjectOps {
   setIconColor(color) {
     const objs = this.canvas.getActiveObjects();
     const walk = (o) => {
-      o.set('stroke', color);
-      if (o.fill && o.fill !== 'transparent') o.set('fill', o.isIconStrokeFill ? color : o.fill);
-      if (o._objects) o._objects.forEach(walk);
+      if (o._objects && o._objects.length) {
+        o._objects.forEach(walk);
+      } else {
+        let changed = false;
+        if (o.stroke && o.stroke !== 'none' && o.stroke !== 'transparent') {
+          o.set('stroke', color);
+          changed = true;
+        }
+        if (o.fill && o.fill !== 'none' && o.fill !== 'transparent') {
+          o.set('fill', color);
+          changed = true;
+        }
+        if (!changed) {
+          o.set('stroke', color);
+        }
+        o.dirty = true;
+      }
     };
-    objs.forEach(walk);
+    objs.forEach(o => {
+      walk(o);
+      o.set('stroke', color);
+      o.dirty = true;
+    });
+    this.canvas.requestRenderAll();
     this._commit();
   }
 
   isIconSelection() {
     const objs = this.canvas.getActiveObjects();
     if (!objs.length) return false;
-    // all selected objects are stroke-based (icons) — their fills are null
-    const allStrokeIcons = objs.every(o => this._looksLikeIcon(o));
-    return allStrokeIcons;
+    return objs.every(o => this._looksLikeIcon(o));
   }
 
   _looksLikeIcon(o) {
+    if (!o) return false;
+    if (o._isIcon || o.name === 'Icon') return true;
     const collect = (obj) => {
       if (!obj) return [];
       if (obj._objects) return obj._objects.flatMap(collect);
@@ -334,7 +353,7 @@ export class ObjectOps {
     };
     const leaves = collect(o);
     if (!leaves.length) return false;
-    return leaves.every(p => (p.stroke && p.stroke !== '') && (!p.fill || p.fill === 'transparent' || p.fill === ''));
+    return leaves.some(p => p.stroke && p.stroke !== 'none' && p.stroke !== 'transparent');
   }
 
   /* ----------------------------- misc ------------------------------ */

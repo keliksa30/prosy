@@ -1134,11 +1134,68 @@ export class EditorApp {
     setTimeout(() => search.focus(), 80);
   }
 
+  recolorIcon(obj, color, saveHistory = true) {
+    if (!obj) return;
+    const walk = (o) => {
+      if (o._objects && o._objects.length) {
+        o._objects.forEach(walk);
+      } else {
+        let changed = false;
+        if (o.stroke && o.stroke !== 'none' && o.stroke !== 'transparent') {
+          o.set('stroke', color);
+          changed = true;
+        }
+        if (o.fill && o.fill !== 'none' && o.fill !== 'transparent') {
+          o.set('fill', color);
+          changed = true;
+        }
+        if (!changed) {
+          o.set('stroke', color);
+        }
+        o.dirty = true;
+      }
+    };
+    walk(obj);
+    obj.set('stroke', color);
+    obj.dirty = true;
+    this.canvasManager.canvas.requestRenderAll();
+    if (saveHistory) {
+      this.historyManager.saveState();
+      document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+    }
+  }
+
+  getIconColor(obj) {
+    if (!obj) return '#0f172a';
+    const collect = [];
+    const walk = (o) => {
+      if (o._objects && o._objects.length) o._objects.forEach(walk);
+      else collect.push(o);
+    };
+    walk(obj);
+    const found = collect.find(p => p.stroke && String(p.stroke).startsWith('#')) ||
+                  collect.find(p => p.fill && String(p.fill).startsWith('#')) ||
+                  collect.find(p => p.stroke && p.stroke !== 'none' && p.stroke !== 'transparent');
+    if (found) {
+      return String(found.stroke || found.fill);
+    }
+    return obj.stroke || obj.fill || '#0f172a';
+  }
+
   openMobileColorPicker(obj) {
     if (!obj) return;
     const isText = obj.type === 'textbox' || obj.type === 'i-text';
+    const isIcon = Boolean(
+      obj._isIcon ||
+      obj.name === 'Icon' ||
+      (this.ops && this.ops.isIconSelection && this.ops.isIconSelection()) ||
+      (obj.type === 'group' && !obj.custom?.maskWrap && !obj.custom?.isPhotoPlaceholder)
+    );
+
     const prop = isText ? 'fill' : (obj.fill && obj.fill !== 'transparent' ? 'fill' : 'stroke');
-    const currentColor = obj.get(prop) || (isText ? '#18181b' : '#7b46f8');
+    const currentColor = isIcon
+      ? this.getIconColor(obj)
+      : (obj.get(prop) || (isText ? '#18181b' : '#7b46f8'));
 
     const presets = [
       '#ffffff', '#f7f6f3', '#0f172a', '#18181b',
@@ -1161,10 +1218,14 @@ export class EditorApp {
         cursor:pointer;padding:0;box-shadow:0 2px 6px rgba(0,0,0,0.2);
       `;
       chip.onclick = () => {
-        obj.set(prop, hex);
-        this.canvasManager.canvas.requestRenderAll();
-        this.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        if (isIcon) {
+          this.recolorIcon(obj, hex, true);
+        } else {
+          obj.set(prop, hex);
+          this.canvasManager.canvas.requestRenderAll();
+          this.historyManager.saveState();
+          document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        }
         this.closeMobileSheet();
       };
       grid.appendChild(chip);
@@ -1180,19 +1241,30 @@ export class EditorApp {
     container.appendChild(grid);
     container.appendChild(customRow);
 
-    this.openMobileSheet(isText ? 'Text Color' : 'Element Color', container);
+    const sheetTitle = isText ? 'Text Color' : (isIcon ? 'Icon Color' : 'Element Color');
+    this.openMobileSheet(sheetTitle, container);
 
     setTimeout(() => {
       const colorInput = document.getElementById('mobile-custom-color');
       colorInput?.addEventListener('input', (e) => {
-        obj.set(prop, e.target.value);
-        this.canvasManager.canvas.requestRenderAll();
+        const hex = e.target.value;
+        if (isIcon) {
+          this.recolorIcon(obj, hex, false);
+        } else {
+          obj.set(prop, hex);
+          this.canvasManager.canvas.requestRenderAll();
+        }
       });
       colorInput?.addEventListener('change', (e) => {
-        obj.set(prop, e.target.value);
-        this.canvasManager.canvas.requestRenderAll();
-        this.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        const hex = e.target.value;
+        if (isIcon) {
+          this.recolorIcon(obj, hex, true);
+        } else {
+          obj.set(prop, hex);
+          this.canvasManager.canvas.requestRenderAll();
+          this.historyManager.saveState();
+          document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        }
       });
     }, 50);
   }

@@ -204,7 +204,7 @@ export class PropertiesPanel {
     const host = this.host;
     host.innerHTML = '';
     const typeLabel = this._typeLabel(obj);
-    const isIcon = this.ops.isIconSelection() || (obj.type === 'group' && this._looksIconLike(obj));
+    const isIcon = Boolean(obj._isIcon || obj.name === 'Icon' || this.ops.isIconSelection() || (obj.type === 'group' && this._looksIconLike(obj)));
 
     const head = document.createElement('div');
     head.className = 'panel-head';
@@ -422,6 +422,7 @@ export class PropertiesPanel {
     if (o.type === 'i-text' || o.type === 'text' || o.type === 'textbox') return 'Text';
     if (o.type === 'image') return 'Image';
     if (o.type === 'group') {
+      if (o._isIcon || o.name === 'Icon') return 'Icon';
       const inner = o._objects || [];
       if (inner.length && inner.every(p => p.stroke && (!p.fill || p.fill === '' || p.fill === 'transparent'))) return 'Icon';
       return 'Group';
@@ -439,11 +440,13 @@ export class PropertiesPanel {
   }
 
   _looksIconLike(g) {
+    if (!g) return false;
+    if (g._isIcon || g.name === 'Icon') return true;
     const leaves = [];
     const walk = (o) => { if (o._objects) o._objects.forEach(walk); else leaves.push(o); };
     walk(g);
     if (!leaves.length) return false;
-    return leaves.every(p => (p.stroke && p.stroke !== '') && (!p.fill || p.fill === 'transparent' || p.fill === ''));
+    return leaves.some(p => p.stroke && p.stroke !== 'none' && p.stroke !== 'transparent');
   }
 
   _isFillable(o) {
@@ -1080,8 +1083,9 @@ export class PropertiesPanel {
       const collect = [];
       const walk = (o) => { if (o._objects) o._objects.forEach(walk); else collect.push(o); };
       walk(obj);
-      const c = collect.find(p => p.stroke && String(p.stroke).startsWith('#'));
-      return c ? String(c.stroke) : '#0f172a';
+      const c = collect.find(p => p.stroke && String(p.stroke).startsWith('#')) ||
+                collect.find(p => p.fill && String(p.fill).startsWith('#'));
+      return c ? String(c.stroke || c.fill) : (obj.stroke || '#0f172a');
     })();
 
     const cc = colorControl({
@@ -1112,22 +1116,35 @@ export class PropertiesPanel {
     body.appendChild(sw);
     const note = document.createElement('div');
     note.className = 'panel-note';
-    note.textContent = 'Icons are stroke-based — recolor paints every path.';
+    note.textContent = 'Icons are vector art — recolor paints every path.';
     body.appendChild(note);
     return this._section('Icon color', body);
   }
 
   _recolor(obj, color) {
     const walk = (o) => {
-      if (o._objects) o._objects.forEach(walk);
-      else {
-        o.set('stroke', color);
-        if (o.fill && o.fill !== 'transparent' && String(o.fill).startsWith('#')) {
-          // lucide fills are none; keep gradient-like fills untouched
+      if (o._objects && o._objects.length) {
+        o._objects.forEach(walk);
+      } else {
+        let changed = false;
+        if (o.stroke && o.stroke !== 'none' && o.stroke !== 'transparent') {
+          o.set('stroke', color);
+          changed = true;
         }
+        if (o.fill && o.fill !== 'none' && o.fill !== 'transparent') {
+          o.set('fill', color);
+          changed = true;
+        }
+        if (!changed) {
+          o.set('stroke', color);
+        }
+        o.dirty = true;
       }
     };
     walk(obj);
+    obj.set('stroke', color);
+    obj.dirty = true;
+    this.canvas.requestRenderAll();
   }
 
   _imageSection(obj) {
