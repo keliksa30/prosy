@@ -892,7 +892,20 @@ export class EditorApp {
       const onSelectionChange = () => this.updateMobileQuickBar();
       canvas.on('selection:created', onSelectionChange);
       canvas.on('selection:updated', onSelectionChange);
-      canvas.on('selection:cleared', onSelectionChange);
+      canvas.on('selection:cleared', () => {
+        this.isMobileMultiSelect = false;
+        onSelectionChange();
+      });
+
+      canvas.on('mouse:down:before', (opt) => {
+        if (this.isMobileMultiSelect && opt.e && typeof window !== 'undefined' && window.innerWidth <= 768) {
+          try {
+            Object.defineProperty(opt.e, 'shiftKey', { get: () => true });
+          } catch (err) {
+            opt.e.shiftKey = true;
+          }
+        }
+      });
 
       // Mobile double-tap on text object directly opens mobile text editor
       let lastTapTime = 0;
@@ -924,6 +937,20 @@ export class EditorApp {
     }
 
     quickBar.innerHTML = '';
+
+    const btnSelectMore = document.createElement('button');
+    btnSelectMore.className = 'mobile-quick-btn' + (this.isMobileMultiSelect ? ' active' : '');
+    if (this.isMobileMultiSelect) {
+      btnSelectMore.style.background = 'var(--accent)';
+      btnSelectMore.style.color = '#fff';
+    }
+    btnSelectMore.innerHTML = `${svg('CheckSquare', 14)} Select More`;
+    btnSelectMore.onclick = () => {
+      this.isMobileMultiSelect = !this.isMobileMultiSelect;
+      this.updateMobileQuickBar();
+    };
+    quickBar.appendChild(btnSelectMore);
+
     const isText = active.type === 'textbox' || active.type === 'i-text';
 
     if (isText) {
@@ -1025,7 +1052,7 @@ export class EditorApp {
     }
 
     const btnDup = document.createElement('button');
-    if (active.type === 'activeSelection') {
+    if (active.type === 'activeselection' || active.type === 'activeSelection') {
       const btnGroup = document.createElement('button');
       btnGroup.className = 'mobile-quick-btn';
       btnGroup.innerHTML = `${svg('Group', 14)} Group`;
