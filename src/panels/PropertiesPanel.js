@@ -246,7 +246,8 @@ export class PropertiesPanel {
       scroll.appendChild(this._radiusSection(obj));
     }
     const cm = this.app.canvasManager;
-    const isPlaceholder = obj.custom?.isPhotoPlaceholder || obj.custom?.maskWrap || (cm && cm._isPlaceholderShape(obj));
+    const isShape = ['rect', 'circle', 'ellipse', 'triangle', 'path', 'polygon'].includes(obj.type) && !isIcon;
+    const isPlaceholder = isShape || obj.custom?.isPhotoPlaceholder || obj.custom?.maskWrap || (cm && cm._isPlaceholderShape(obj));
     // Show photo slot only if NOT already clipped (unmask section handles replace for clipped objects)
     if (isPlaceholder && obj.type !== 'image' && !isIcon && !obj.clipPath) {
       scroll.appendChild(this._photoPlaceholderSection(obj));
@@ -442,11 +443,13 @@ export class PropertiesPanel {
   _looksIconLike(g) {
     if (!g) return false;
     if (g._isIcon || g.name === 'Icon') return true;
+    if (g.type !== 'group' || !g._objects || !g._objects.length) return false;
+    if (g.custom?.shapeKey || g.custom?.isPhotoPlaceholder || g.custom?.maskWrap) return false;
     const leaves = [];
     const walk = (o) => { if (o._objects) o._objects.forEach(walk); else leaves.push(o); };
     walk(g);
     if (!leaves.length) return false;
-    return leaves.some(p => p.stroke && p.stroke !== 'none' && p.stroke !== 'transparent');
+    return leaves.every(p => p.stroke && (!p.fill || p.fill === '' || p.fill === 'none' || p.fill === 'transparent'));
   }
 
   _isFillable(o) {

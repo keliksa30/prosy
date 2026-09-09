@@ -728,13 +728,11 @@ export class CanvasManager {
     if (obj.type === 'image') return false;
     if (obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'text') return false;
 
-    // Filter out UI icons, badges, indicators, and handles
-    if (/icon|arrow|check|heart|comment|share|bookmark|logo|lock|dot|grip|bar|spacer|ring|options/i.test(obj.name || '')) {
-      return false;
-    }
+    if (obj._isIcon || obj.name === 'Icon') return false;
 
     if (obj.custom?.isPhotoPlaceholder) return true;
     if (obj.custom?.maskWrap) return true;
+    if (obj.custom?.shapeKey) return true;
     const n = (obj.name || '').toLowerCase();
     if (n.includes('photo') || n.includes('frame') || n.includes('slot') || n.includes('viewport') || n.includes('screen')) {
       return true;

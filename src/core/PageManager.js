@@ -157,6 +157,10 @@ export class PageManager {
     document.dispatchEvent(new CustomEvent('prosy:pageSwitched', { detail: { index: this.currentIndex } }));
   }
 
+  switchToPage(index) {
+    return this.switchPage(index);
+  }
+
   async switchPage(index) {
     if (index < 0 || index >= this.pages.length) return;
     this.saveCurrentPage();

@@ -972,12 +972,32 @@ export class EditorApp {
       };
       quickBar.appendChild(btnPlus);
     } else {
-      // Shape / Object quick actions: Color, Size -, Size +, Duplicate, Delete, More
+      // Shape / Object quick actions: Color, Photo (if shape/slot), Size -, Size +, Duplicate, Delete, More
       const btnColor = document.createElement('button');
       btnColor.className = 'mobile-quick-btn';
       btnColor.innerHTML = `${svg('Palette', 14)} Color`;
       btnColor.onclick = () => this.openMobileColorPicker(active);
       quickBar.appendChild(btnColor);
+
+      const isIcon = Boolean(active._isIcon || active.name === 'Icon');
+      const isShapeOrSlot = !isIcon && (
+        ['rect', 'circle', 'ellipse', 'triangle', 'path', 'polygon'].includes(active.type) ||
+        active.custom?.isPhotoPlaceholder || active.custom?.maskWrap ||
+        (this.canvasManager && this.canvasManager._isPlaceholderShape(active))
+      );
+
+      if (isShapeOrSlot) {
+        const btnPhoto = document.createElement('button');
+        btnPhoto.className = 'mobile-quick-btn';
+        btnPhoto.innerHTML = `${svg('ImagePlus', 14)} Photo`;
+        btnPhoto.title = 'Add / Replace Photo';
+        btnPhoto.onclick = async () => {
+          const target = this.canvasManager?.findPlaceholderTarget(active) || { type: 'standalone', obj: active };
+          await this.ops.promptUploadForPlaceholder(target);
+          this.updateMobileQuickBar(this.canvasManager.canvas.getActiveObject());
+        };
+        quickBar.appendChild(btnPhoto);
+      }
 
       const btnMinus = document.createElement('button');
       btnMinus.className = 'mobile-quick-btn';
@@ -1395,6 +1415,42 @@ export class EditorApp {
     const container = document.createElement('div');
     container.style.cssText = 'display:flex;flex-direction:column;gap:14px;';
 
+    // Top Prev / Next Navigation buttons
+    if (pm.pages.length > 1) {
+      const navRow = document.createElement('div');
+      navRow.style.cssText = 'display:flex;gap:10px;align-items:center;';
+
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'btn btn-ghost';
+      prevBtn.style.cssText = 'flex:1;justify-content:center;font-size:12.5px;padding:9px;';
+      prevBtn.innerHTML = `${svg('ChevronLeft', 15)} Prev Slide`;
+      prevBtn.disabled = pm.currentIndex <= 0;
+      prevBtn.onclick = async () => {
+        if (pm.currentIndex > 0) {
+          await pm.switchPage(pm.currentIndex - 1);
+          this.refreshPageChrome();
+          this.closeMobileSheet();
+        }
+      };
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'btn btn-ghost';
+      nextBtn.style.cssText = 'flex:1;justify-content:center;font-size:12.5px;padding:9px;';
+      nextBtn.innerHTML = `Next Slide ${svg('ChevronRight', 15)}`;
+      nextBtn.disabled = pm.currentIndex >= pm.pages.length - 1;
+      nextBtn.onclick = async () => {
+        if (pm.currentIndex < pm.pages.length - 1) {
+          await pm.switchPage(pm.currentIndex + 1);
+          this.refreshPageChrome();
+          this.closeMobileSheet();
+        }
+      };
+
+      navRow.appendChild(prevBtn);
+      navRow.appendChild(nextBtn);
+      container.appendChild(navRow);
+    }
+
     const strip = document.createElement('div');
     strip.className = 'mobile-pages-strip';
 
@@ -1402,14 +1458,16 @@ export class EditorApp {
       const card = document.createElement('div');
       card.className = 'mobile-page-thumb-card';
       const isActive = idx === pm.currentIndex;
+      const thumbUrl = page.thumbnail || page.thumb;
       card.innerHTML = `
         <div class="mobile-page-thumb-box ${isActive ? 'active' : ''}">
-          ${page.thumb ? `<img src="${page.thumb}" alt="">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-weight:700;">${idx + 1}</div>`}
+          ${thumbUrl ? `<img src="${thumbUrl}" alt="" style="width:100%;height:100%;object-fit:cover;">` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-weight:700;">${idx + 1}</div>`}
         </div>
         <div class="mobile-page-title">${idx + 1}. ${escapeHtml(page.title || 'Untitled')}</div>
       `;
-      card.onclick = () => {
-        pm.switchToPage(idx);
+      card.onclick = async () => {
+        await pm.switchPage(idx);
+        this.refreshPageChrome();
         this.closeMobileSheet();
       };
       strip.appendChild(card);
@@ -1423,6 +1481,7 @@ export class EditorApp {
     addBtn.innerHTML = `${svg('Plus', 16)} Add New Slide`;
     addBtn.onclick = () => {
       this.ops.addPageAfterCurrent();
+      this.refreshPageChrome();
       this.closeMobileSheet();
     };
     container.appendChild(addBtn);

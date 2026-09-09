@@ -346,14 +346,16 @@ export class ObjectOps {
   _looksLikeIcon(o) {
     if (!o) return false;
     if (o._isIcon || o.name === 'Icon') return true;
-    const collect = (obj) => {
-      if (!obj) return [];
-      if (obj._objects) return obj._objects.flatMap(collect);
-      return [obj];
+    if (o.type !== 'group' || !o._objects || !o._objects.length) return false;
+    if (o.custom?.shapeKey || o.custom?.isPhotoPlaceholder || o.custom?.maskWrap) return false;
+    const leaves = [];
+    const walk = (obj) => {
+      if (obj._objects && obj._objects.length) obj._objects.forEach(walk);
+      else leaves.push(obj);
     };
-    const leaves = collect(o);
+    walk(o);
     if (!leaves.length) return false;
-    return leaves.some(p => p.stroke && p.stroke !== 'none' && p.stroke !== 'transparent');
+    return leaves.every(p => p.stroke && (!p.fill || p.fill === '' || p.fill === 'none' || p.fill === 'transparent'));
   }
 
   /* ----------------------------- misc ------------------------------ */
