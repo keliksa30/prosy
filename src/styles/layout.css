@@ -1,0 +1,160 @@
+/* ================= Prosy layout ================= */
+#app { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+
+.header-area {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  z-index: var(--z-floating);
+}
+.app-bar {
+  height: var(--height-appbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px 0 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+.project-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: text;
+}
+.project-name:hover { color: var(--text-primary); background: var(--bg-hover); }
+.project-name-input {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  background: var(--bg-raised); border: 1px solid var(--accent);
+  border-radius: 6px; padding: 2px 6px; outline: none; width: 200px;
+}
+.appbar-btn { font-size: 12.5px; padding: 6px 11px; }
+
+.ribbon-toolbar {
+  height: var(--height-ribbon);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  /* overflow visible so the shape dropdown can extend below the bar */
+  overflow: visible;
+}
+
+/* ================= workspace ================= */
+.workspace { flex: 1; display: flex; flex-direction: row; overflow: hidden; position: relative; }
+
+/* left: pages rail */
+.filmstrip-panel {
+  width: var(--width-filmstrip);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-panels);
+}
+.filmstrip-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 12px 9px;
+  border-bottom: 1px solid var(--border-color);
+}
+.filmstrip-title { font-family: var(--font-headline); font-weight: 600; font-size: 13px; letter-spacing: 0.2px; }
+.filmstrip-count {
+  font-size: 11px; color: var(--text-secondary); background: var(--bg-raised);
+  border-radius: 999px; padding: 1px 8px; min-width: 20px; text-align: center;
+}
+.filmstrip-list {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 10px;
+  align-content: flex-start;
+}
+.filmstrip-addrow {
+  margin: 6px 12px 12px; padding: 7px;
+  border: 1px dashed var(--border-strong); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary); font-size: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+}
+.filmstrip-addrow:hover { color: var(--text-primary); border-color: var(--accent); background: var(--accent-soft); }
+
+.filmstrip-item { display: flex; gap: 9px; align-items: center; cursor: pointer; position: relative; }
+.filmstrip-item.dragging { opacity: 0.35; }
+.filmstrip-num {
+  font-size: 11px; color: var(--text-muted); width: 18px; text-align: right; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.filmstrip-item.active .filmstrip-num { color: var(--accent-text); font-weight: 700; }
+.filmstrip-thumb {
+  width: 148px; height: 83px; border-radius: var(--radius-sm); overflow: hidden;
+  border: 1.5px solid var(--border-color);
+  background: #0e0f12;
+  flex-shrink: 0; position: relative;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
+}
+.filmstrip-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.filmstrip-thumb.empty { display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 26px; font-weight: 600; font-family: var(--font-headline); }
+.filmstrip-item.active .filmstrip-thumb { border-color: var(--sel-border); box-shadow: 0 0 0 3px var(--accent-soft); }
+.filmstrip-item:hover .filmstrip-thumb { border-color: var(--border-strong); }
+.filmstrip-item.active:hover .filmstrip-thumb { border-color: var(--sel-border); }
+.filmstrip-dropmark { height: 3px; border-radius: 3px; background: var(--accent); margin: -3px 2px 1px; }
+.filmstrip-dropend { height: 6px; }
+
+/* center: canvas viewport */
+.canvas-viewport {
+  flex: 1; position: relative; overflow: hidden;
+  background:
+    radial-gradient(1200px 800px at 50% 0%, #1d1e24 0%, var(--bg-workspace) 60%);
+}
+.canvas-wrapper {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 0 0;
+  box-shadow: var(--canvas-shadow);
+  background: #fff;
+}
+
+/* right: dock */
+.dock-panel {
+  width: var(--width-dock);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-color);
+  display: flex; flex-direction: column;
+  z-index: var(--z-panels);
+}
+.dock-tabs { display: flex; border-bottom: 1px solid var(--border-color); padding: 0 6px; }
+.dock-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 4px 9px; font-size: 12px; font-weight: 600; color: var(--text-muted);
+  background: transparent; border: none; cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.dock-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.dock-tab.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+.dock-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.dock-body-pane {
+  position: absolute; inset: 0; display: none; flex-direction: column; overflow: hidden;
+}
+.dock-body-pane.active { display: flex; }
+
+/* bottom status bar */
+.status-bar {
+  height: var(--height-statusbar);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; padding: 0 12px;
+  font-size: 11.5px; color: var(--text-secondary);
+  z-index: var(--z-panels);
+}
+.status-hints { display: flex; gap: 9px; align-items: center; color: var(--text-muted); font-size: 11px; overflow: hidden; white-space: nowrap; }
+.status-hints b { color: var(--text-secondary); font-weight: 700; }
+.save-indicator { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+.save-indicator.flash { color: #7bd88f; }

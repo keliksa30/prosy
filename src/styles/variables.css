@@ -1,0 +1,90 @@
+/* Prosy design tokens — refined dark chrome */
+:root {
+  /* Brand colors — purple per logo (was orange accent) */
+  --prosy-purple: #7b46f8;
+  --prosy-purple-deep: #5b2ee6;
+  --prosy-purple-soft: rgba(123, 70, 248, 0.16);
+  --prosy-pink: #fa51a2;
+  --prosy-orange: #7b46f8;          /* legacy alias → purple */
+  --prosy-orange-strong: #5b2ee6;   /* legacy alias → deep purple */
+
+  /* Surfaces */
+  --bg-workspace: #16171b;
+  --bg-panel: #1e1f24;
+  --bg-surface: #24262c;
+  --bg-raised: #2b2d34;
+  --bg-hover: rgba(255, 255, 255, 0.055);
+  --bg-active: rgba(255, 255, 255, 0.09);
+  --border-color: #33353c;
+  --border-strong: #43464f;
+  --canvas-shadow: 0 2px 4px rgba(0,0,0,.45), 0 18px 48px rgba(0,0,0,.55);
+
+  /* Text */
+  --text-primary: #ececf1;
+  --text-secondary: #a7a9b3;
+  --text-muted: #6b6e78;
+
+  --hover-overlay: rgba(255, 255, 255, 0.055);
+  --active-overlay: rgba(255, 255, 255, 0.09);
+  --focus-ring: 0 0 0 2px rgba(139, 92, 246, 0.55);
+
+  /* Branded states (purple ramp) */
+  --accent: var(--prosy-purple);
+  --accent-strong: var(--prosy-purple-deep);
+  --accent-soft: rgba(123, 70, 248, 0.16);
+  --accent-text: #c4b5fd;
+  --sel-border: #a78bfa;
+  --danger: #ff6b6b;
+  --danger-soft: rgba(255, 107, 107, 0.14);
+
+  /* Type */
+  --font-headline: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-label: 'Inter', system-ui, sans-serif;
+  --font-mono: 'Space Grotesk', ui-monospace, monospace;
+
+  /* Metrics */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  --height-appbar: 46px;
+  --height-ribbon: 56px;
+  --height-statusbar: 30px;
+  --width-filmstrip: 208px;
+  --width-dock: 280px;
+
+  --shadow-panel: 0 10px 34px rgba(0, 0, 0, 0.45);
+  --shadow-floating: 0 6px 22px rgba(0, 0, 0, 0.35);
+  --shadow-canvas: 0 0 40px rgba(0, 0, 0, 0.5);
+
+  --z-canvas: 1;
+  --z-panels: 10;
+  --z-floating: 30;
+  --z-modal: 60;
+  --z-toast: 90;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg-workspace);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; }
+input, textarea, [contenteditable] { user-select: text; font-family: inherit; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #3a3c44; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #4a4d57; background-clip: content-box; border: 2px solid transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
+:focus-visible { outline: none; }
+kbd { font-family: var(--font-mono); }
