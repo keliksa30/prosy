@@ -27,7 +27,10 @@ export class PropertiesPanel {
     this.fontPickerOpen = false;
 
     this.handleSelection = () => {
-      if (!this.host || !this.host.offsetParent) return; // visible tab only
+      if (!this.host) return;
+      const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+      const isMobileHost = this.host.id === 'mobile-sheet-content' || isMobile;
+      if (!isMobileHost && !this.host.offsetParent) return; // visible tab only on desktop
       this._throttledRender();
     };
     this._onObjectEdited = () => this._throttledRender();

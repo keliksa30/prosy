@@ -28,43 +28,43 @@ export class WelcomeScreen {
     const packs = app.templateManager ? app.templateManager.packs : [];
 
     this.container.innerHTML = `
-      <div style="padding:0 48px;height:64px;border-bottom:1px solid var(--border-color);background:var(--bg-panel);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-        <div style="display:flex;align-items:center;gap:10px;font-family:var(--font-headline);font-weight:700;font-size:18px;">
+      <div class="welcome-topbar">
+        <div class="welcome-brand">
           <img src="/favicon.svg" alt="Prosy" width="24" height="24">
           Prosy
         </div>
-        <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--text-secondary);">
-          <span id="welcome-open" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;">
-            ${svg('FolderOpen', 14)} Open .prs file
-          </span>
+        <div class="welcome-actions">
+          <button class="btn btn-ghost" id="welcome-open" style="font-size:12px;padding:6px 12px;">
+            ${svg('FolderOpen', 14)} Open .prs
+          </button>
         </div>
       </div>
-      <div style="flex:1;display:flex;overflow:hidden;">
-        <div style="width:220px;border-right:1px solid var(--border-color);background:var(--bg-surface);padding:20px;flex-shrink:0;">
-          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+      <div class="welcome-body">
+        <div class="welcome-sidebar">
+          <div class="welcome-sidebar-actions">
             ${hasDraft ? `
-              <button class="btn btn-primary" id="btn-resume-file" style="justify-content:flex-start;padding:10px 12px;font-weight:600;">
+              <button class="btn btn-primary" id="btn-resume-file" style="justify-content:flex-start;padding:10px 14px;font-weight:600;">
                 ${svg('Play', 14)} Resume project
               </button>
-              <button class="btn btn-ghost" id="btn-discard-draft" style="justify-content:flex-start;padding:9px 12px;font-size:12px;">
+              <button class="btn btn-ghost" id="btn-discard-draft" style="justify-content:flex-start;padding:8px 12px;font-size:12px;">
                 ${svg('Trash2', 13)} Discard draft
               </button>` : ''}
-            <button class="btn btn-ghost" id="btn-new-file" style="justify-content:flex-start;padding:9px 12px;font-size:12px;">
+            <button class="btn ${hasDraft ? 'btn-ghost' : 'btn-primary'}" id="btn-new-file" style="justify-content:flex-start;padding:10px 14px;font-weight:600;">
               ${svg('FilePlus2', 14)} New blank project
             </button>
           </div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:22px;line-height:1.6;">
+          <div class="welcome-sidebar-note">
             <strong style="color:var(--text-secondary);">Prosy</strong> is a page-based
             designer for portfolios &amp; pitch decks. Pages, shapes,
             Google fonts, icons, masks — all yours.
           </div>
         </div>
 
-        <div style="flex:1;padding:44px 48px;overflow-y:auto;">
-          <h1 style="font-family:var(--font-headline);font-weight:600;font-size:30px;margin:0 0 6px;">Start something good</h1>
-          <p style="color:var(--text-secondary);margin:0 0 28px;font-size:14px;">Blank project, or a professional starter template.</p>
+        <div class="welcome-main">
+          <h1 class="welcome-hero-title">Start something good</h1>
+          <p class="welcome-hero-sub">Blank project, or a professional starter template.</p>
 
-          <div id="welcome-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:22px;max-width:1200px;"></div>
+          <div id="welcome-grid" class="welcome-grid"></div>
         </div>
       </div>`;
 

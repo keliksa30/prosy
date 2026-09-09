@@ -28,7 +28,8 @@ import { WelcomeScreen } from '../ui/WelcomeScreen.js';
 import { ContextMenu } from '../ui/ContextMenu.js';
 import { Modal } from '../ui/Modal.js';
 import { svg } from '../ui/icons.js';
-import { SHAPE_DEFS, SHAPE_LIST } from '../shapes/defs.js';
+import { SHAPE_DEFS, SHAPE_LIST, createShape } from '../shapes/defs.js';
+import { GOOGLE_FONTS, FONT_CATEGORIES, loadFont } from './fonts.js';
 import * as fabric from 'fabric';
 
 const TOOL_KEYS = {
@@ -348,9 +349,11 @@ export class EditorApp {
 
     <!-- Mobile More Menu Dropdown -->
     <div class="mobile-more-menu" id="mobile-more-menu" style="display:none">
+      <button class="mobile-more-item" id="mmm-btn-save">${svg('Save', 16)} <span>Save .prs File</span></button>
+      <button class="mobile-more-item" id="mmm-btn-export">${svg('Download', 16)} <span>Export (PDF/PPTX)</span></button>
+      <button class="mobile-more-item" id="mmm-btn-open">${svg('FolderOpen', 16)} <span>Open .prs File</span></button>
       <button class="mobile-more-item" id="mmm-btn-templates">${svg('LayoutTemplate', 16)} <span>Templates</span></button>
       <button class="mobile-more-item" id="mmm-btn-present">${svg('Play', 16)} <span>Present Deck</span></button>
-      <button class="mobile-more-item" id="mmm-btn-open">${svg('FolderOpen', 16)} <span>Open File</span></button>
     </div>
 
     <div class="toast-stack" id="toast-stack"></div>
@@ -849,18 +852,26 @@ export class EditorApp {
           moreMenu.style.display = 'none';
         }
       });
-      document.getElementById('mmm-btn-templates').onclick = () => {
+      document.getElementById('mmm-btn-save')?.addEventListener('click', () => {
         moreMenu.style.display = 'none';
-        this.templateChooser.show({ mode: 'pack' });
-      };
-      document.getElementById('mmm-btn-present').onclick = () => {
+        this.projectFileManager.saveToPrs();
+      });
+      document.getElementById('mmm-btn-export')?.addEventListener('click', () => {
         moreMenu.style.display = 'none';
-        this.presentationMode.start();
-      };
-      document.getElementById('mmm-btn-open').onclick = () => {
+        this.exportSettingsModal.show();
+      });
+      document.getElementById('mmm-btn-open')?.addEventListener('click', () => {
         moreMenu.style.display = 'none';
         this.projectFileManager.triggerLoad();
-      };
+      });
+      document.getElementById('mmm-btn-templates')?.addEventListener('click', () => {
+        moreMenu.style.display = 'none';
+        this.templateChooser.show({ mode: 'pack' });
+      });
+      document.getElementById('mmm-btn-present')?.addEventListener('click', () => {
+        moreMenu.style.display = 'none';
+        this.presentationMode.start();
+      });
     }
 
     // Sheet close & overlay dismiss
@@ -877,56 +888,366 @@ export class EditorApp {
 
     // Selection changes for Mobile Quick Actions bar
     const canvas = this.canvasManager?.canvas;
-    const quickBar = document.getElementById('mobile-quick-actions');
-    if (canvas && quickBar) {
-      const updateQuickBar = () => {
-        const active = canvas.getActiveObject();
-        if (active) {
-          quickBar.classList.add('visible');
-        } else {
-          quickBar.classList.remove('visible');
-        }
-      };
-      canvas.on('selection:created', updateQuickBar);
-      canvas.on('selection:updated', updateQuickBar);
-      canvas.on('selection:cleared', updateQuickBar);
+    if (canvas) {
+      const onSelectionChange = () => this.updateMobileQuickBar();
+      canvas.on('selection:created', onSelectionChange);
+      canvas.on('selection:updated', onSelectionChange);
+      canvas.on('selection:cleared', onSelectionChange);
 
-      // Quick bar buttons
-      document.getElementById('mq-btn-duplicate')?.addEventListener('click', () => this.ops.duplicate());
-      document.getElementById('mq-btn-delete')?.addEventListener('click', () => this.ops.deleteSelected());
-      document.getElementById('mq-btn-edit')?.addEventListener('click', () => this.openMobilePropertiesSheet());
-      document.getElementById('mq-btn-color')?.addEventListener('click', () => this.openMobilePropertiesSheet());
-      document.getElementById('mq-btn-size-down')?.addEventListener('click', () => {
-        const obj = canvas.getActiveObject();
-        if (obj) {
-          if (obj.fontSize) {
-            obj.set('fontSize', Math.max(8, (obj.fontSize || 40) - 2));
-            if (obj.initDimensions) obj.initDimensions();
-            if (obj.setCoords) obj.setCoords();
-          } else {
-            obj.scale((obj.scaleX || 1) * 0.95);
-            obj.setCoords();
+      // Mobile double-tap on text object directly opens mobile text editor
+      let lastTapTime = 0;
+      canvas.on('mouse:down', (opt) => {
+        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+          const now = Date.now();
+          if (now - lastTapTime < 350) {
+            const target = opt.target;
+            if (target && (target.type === 'textbox' || target.type === 'i-text')) {
+              this.openMobileTextEditor(target);
+            }
           }
-          canvas.requestRenderAll();
-          this.historyManager.saveState();
-        }
-      });
-      document.getElementById('mq-btn-size-up')?.addEventListener('click', () => {
-        const obj = canvas.getActiveObject();
-        if (obj) {
-          if (obj.fontSize) {
-            obj.set('fontSize', Math.min(300, (obj.fontSize || 40) + 2));
-            if (obj.initDimensions) obj.initDimensions();
-            if (obj.setCoords) obj.setCoords();
-          } else {
-            obj.scale((obj.scaleX || 1) * 1.05);
-            obj.setCoords();
-          }
-          canvas.requestRenderAll();
-          this.historyManager.saveState();
+          lastTapTime = now;
         }
       });
     }
+  }
+
+  updateMobileQuickBar() {
+    const quickBar = document.getElementById('mobile-quick-actions');
+    if (!quickBar) return;
+    const canvas = this.canvasManager?.canvas;
+    const active = canvas?.getActiveObject();
+
+    if (!active) {
+      quickBar.classList.remove('visible');
+      quickBar.innerHTML = '';
+      return;
+    }
+
+    quickBar.innerHTML = '';
+    const isText = active.type === 'textbox' || active.type === 'i-text';
+
+    if (isText) {
+      // Text quick actions: Edit Text, Font, Color, Size -, Size +, Duplicate, Delete, More
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'mobile-quick-btn';
+      btnEdit.innerHTML = `${svg('PenTool', 14)} Edit`;
+      btnEdit.onclick = () => this.openMobileTextEditor(active);
+      quickBar.appendChild(btnEdit);
+
+      const btnFont = document.createElement('button');
+      btnFont.className = 'mobile-quick-btn';
+      btnFont.innerHTML = `${svg('Type', 14)} Font`;
+      btnFont.onclick = () => this.openMobileFontPicker(active);
+      quickBar.appendChild(btnFont);
+
+      const btnColor = document.createElement('button');
+      btnColor.className = 'mobile-quick-btn';
+      btnColor.innerHTML = `${svg('Palette', 14)} Color`;
+      btnColor.onclick = () => this.openMobileColorPicker(active);
+      quickBar.appendChild(btnColor);
+
+      const btnMinus = document.createElement('button');
+      btnMinus.className = 'mobile-quick-btn';
+      btnMinus.innerHTML = svg('Minus', 13);
+      btnMinus.onclick = () => {
+        active.set('fontSize', Math.max(8, (active.fontSize || 40) - 2));
+        if (active.initDimensions) active.initDimensions();
+        if (active.setCoords) active.setCoords();
+        canvas.requestRenderAll();
+        this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      };
+      quickBar.appendChild(btnMinus);
+
+      const btnPlus = document.createElement('button');
+      btnPlus.className = 'mobile-quick-btn';
+      btnPlus.innerHTML = svg('Plus', 13);
+      btnPlus.onclick = () => {
+        active.set('fontSize', Math.min(300, (active.fontSize || 40) + 2));
+        if (active.initDimensions) active.initDimensions();
+        if (active.setCoords) active.setCoords();
+        canvas.requestRenderAll();
+        this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      };
+      quickBar.appendChild(btnPlus);
+    } else {
+      // Shape / Object quick actions: Color, Size -, Size +, Duplicate, Delete, More
+      const btnColor = document.createElement('button');
+      btnColor.className = 'mobile-quick-btn';
+      btnColor.innerHTML = `${svg('Palette', 14)} Color`;
+      btnColor.onclick = () => this.openMobileColorPicker(active);
+      quickBar.appendChild(btnColor);
+
+      const btnMinus = document.createElement('button');
+      btnMinus.className = 'mobile-quick-btn';
+      btnMinus.innerHTML = svg('Minus', 13);
+      btnMinus.onclick = () => {
+        active.scale((active.scaleX || 1) * 0.92);
+        if (active.setCoords) active.setCoords();
+        canvas.requestRenderAll();
+        this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      };
+      quickBar.appendChild(btnMinus);
+
+      const btnPlus = document.createElement('button');
+      btnPlus.className = 'mobile-quick-btn';
+      btnPlus.innerHTML = svg('Plus', 13);
+      btnPlus.onclick = () => {
+        active.scale((active.scaleX || 1) * 1.08);
+        if (active.setCoords) active.setCoords();
+        canvas.requestRenderAll();
+        this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      };
+      quickBar.appendChild(btnPlus);
+    }
+
+    const btnDup = document.createElement('button');
+    btnDup.className = 'mobile-quick-btn';
+    btnDup.innerHTML = svg('Copy', 14);
+    btnDup.title = 'Duplicate';
+    btnDup.onclick = () => this.ops.duplicate();
+    quickBar.appendChild(btnDup);
+
+    const btnDel = document.createElement('button');
+    btnDel.className = 'mobile-quick-btn';
+    btnDel.innerHTML = svg('Trash2', 14);
+    btnDel.style.color = 'var(--danger)';
+    btnDel.title = 'Delete';
+    btnDel.onclick = () => {
+      if (this.ops && typeof this.ops.delete === 'function') {
+        this.ops.delete();
+      } else if (this.ops && typeof this.ops.deleteSelected === 'function') {
+        this.ops.deleteSelected();
+      }
+      this.updateMobileQuickBar();
+    };
+    quickBar.appendChild(btnDel);
+
+    const btnMore = document.createElement('button');
+    btnMore.className = 'mobile-quick-btn';
+    btnMore.innerHTML = `${svg('Sliders', 14)} More`;
+    btnMore.onclick = () => this.openMobilePropertiesSheet();
+    quickBar.appendChild(btnMore);
+
+    quickBar.classList.add('visible');
+  }
+
+  openMobileTextEditor(textObj) {
+    if (!textObj) return;
+    const currentText = textObj.text || '';
+    const container = document.createElement('div');
+    container.style.cssText = 'display:flex;flex-direction:column;gap:14px;padding:4px 0;';
+    container.innerHTML = `
+      <textarea id="mobile-text-input" style="width:100%;min-height:120px;padding:12px;background:var(--bg-surface);border:1.5px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);font-size:16px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;">${currentText}</textarea>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost" id="mte-btn-cancel" style="padding:9px 16px;">Cancel</button>
+        <button class="btn btn-primary" id="mte-btn-save" style="padding:9px 20px;">Done</button>
+      </div>
+    `;
+
+    this.openMobileSheet('Edit Text Content', container);
+
+    setTimeout(() => {
+      const input = document.getElementById('mobile-text-input');
+      if (input) {
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }, 80);
+
+    document.getElementById('mte-btn-cancel')?.addEventListener('click', () => {
+      this.closeMobileSheet();
+    });
+
+    document.getElementById('mte-btn-save')?.addEventListener('click', () => {
+      const input = document.getElementById('mobile-text-input');
+      if (input) {
+        textObj.set('text', input.value);
+        if (textObj.initDimensions) textObj.initDimensions();
+        if (textObj.setCoords) textObj.setCoords();
+        this.canvasManager.canvas.requestRenderAll();
+        this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      }
+      this.closeMobileSheet();
+    });
+  }
+
+  openMobileFontPicker(textObj) {
+    if (!textObj) return;
+    const container = document.createElement('div');
+    container.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
+
+    const search = document.createElement('input');
+    search.className = 'font-search';
+    search.placeholder = 'Search 40+ Google Fonts...';
+    search.style.cssText = 'width:100%;margin:0;padding:10px 14px;font-size:14px;box-sizing:border-box;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);outline:none;';
+
+    const list = document.createElement('div');
+    list.style.cssText = 'max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:2px;-webkit-overflow-scrolling:touch;';
+
+    const renderFonts = (filter = '') => {
+      list.innerHTML = '';
+      const q = filter.trim().toLowerCase();
+      for (const cat of FONT_CATEGORIES) {
+        const fams = GOOGLE_FONTS.filter(f => f.category === cat && (!q || f.family.toLowerCase().includes(q)));
+        if (!fams.length) continue;
+        const catHead = document.createElement('div');
+        catHead.className = 'font-cat';
+        catHead.textContent = cat;
+        catHead.style.cssText = 'font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);padding:8px 8px 3px;';
+        list.appendChild(catHead);
+
+        fams.forEach(f => {
+          loadFont(f.family);
+          const row = document.createElement('button');
+          row.className = 'font-row' + (textObj.fontFamily === f.family ? ' active' : '');
+          row.style.cssText = 'padding:11px 12px;font-size:15px;display:flex;justify-content:space-between;align-items:center;background:transparent;border:none;border-radius:var(--radius-sm);color:var(--text-primary);cursor:pointer;width:100%;text-align:left;';
+          row.innerHTML = `
+            <span style="font-family:'${f.family}', sans-serif;">${f.family}</span>
+            <span style="font-size:9px;color:var(--text-muted);">${f.category}</span>
+          `;
+          row.onclick = () => {
+            textObj.set('fontFamily', f.family);
+            if (textObj.initDimensions) textObj.initDimensions();
+            if (textObj.setCoords) textObj.setCoords();
+            this.canvasManager.canvas.requestRenderAll();
+            this.historyManager.saveState();
+            document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+            this.closeMobileSheet();
+          };
+          list.appendChild(row);
+        });
+      }
+    };
+
+    search.addEventListener('input', (e) => renderFonts(e.target.value));
+    renderFonts();
+
+    container.appendChild(search);
+    container.appendChild(list);
+
+    this.openMobileSheet('Choose Font', container);
+    setTimeout(() => search.focus(), 80);
+  }
+
+  openMobileColorPicker(obj) {
+    if (!obj) return;
+    const isText = obj.type === 'textbox' || obj.type === 'i-text';
+    const prop = isText ? 'fill' : (obj.fill && obj.fill !== 'transparent' ? 'fill' : 'stroke');
+    const currentColor = obj.get(prop) || (isText ? '#18181b' : '#7b46f8');
+
+    const presets = [
+      '#ffffff', '#f7f6f3', '#0f172a', '#18181b',
+      '#7b46f8', '#9061f9', '#4f46e5', '#2563eb',
+      '#059669', '#10b981', '#f59e0b', '#ef4444',
+      '#ec4899', '#8b5cf6', '#64748b', '#000000'
+    ];
+
+    const container = document.createElement('div');
+    container.style.cssText = 'display:flex;flex-direction:column;gap:16px;padding:6px 0;';
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(8, 1fr);gap:10px;';
+
+    presets.forEach(hex => {
+      const chip = document.createElement('button');
+      chip.style.cssText = `
+        width:100%;aspect-ratio:1;border-radius:8px;background:${hex};
+        border:2px solid ${String(currentColor).toLowerCase() === hex.toLowerCase() ? 'var(--accent)' : 'rgba(255,255,255,0.15)'};
+        cursor:pointer;padding:0;box-shadow:0 2px 6px rgba(0,0,0,0.2);
+      `;
+      chip.onclick = () => {
+        obj.set(prop, hex);
+        this.canvasManager.canvas.requestRenderAll();
+        this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        this.closeMobileSheet();
+      };
+      grid.appendChild(chip);
+    });
+
+    const customRow = document.createElement('div');
+    customRow.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px 0;';
+    customRow.innerHTML = `
+      <span style="font-size:13px;font-weight:600;color:var(--text-secondary);">Custom Color:</span>
+      <input type="color" id="mobile-custom-color" value="${String(currentColor).startsWith('#') ? currentColor : '#7b46f8'}" style="width:50px;height:36px;border:none;border-radius:6px;cursor:pointer;background:transparent;">
+    `;
+
+    container.appendChild(grid);
+    container.appendChild(customRow);
+
+    this.openMobileSheet(isText ? 'Text Color' : 'Element Color', container);
+
+    setTimeout(() => {
+      const colorInput = document.getElementById('mobile-custom-color');
+      colorInput?.addEventListener('input', (e) => {
+        obj.set(prop, e.target.value);
+        this.canvasManager.canvas.requestRenderAll();
+      });
+      colorInput?.addEventListener('change', (e) => {
+        obj.set(prop, e.target.value);
+        this.canvasManager.canvas.requestRenderAll();
+        this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      });
+    }, 50);
+  }
+
+  addShapeToCenter(shapeId = 'rect') {
+    const canvas = this.canvasManager.canvas;
+    if (!canvas) return;
+    const obj = createShape(shapeId);
+    const pw = this.canvasManager.PAGE_W || 1920;
+    const ph = this.canvasManager.PAGE_H || 1080;
+    obj.set({
+      left: pw / 2,
+      top: ph / 2,
+      originX: 'center',
+      originY: 'center',
+      selectable: true,
+      evented: true
+    });
+    canvas.add(obj);
+    canvas.setActiveObject(obj);
+    canvas.requestRenderAll();
+    this.toolManager.setTool('select');
+    this.historyManager.saveState();
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+  }
+
+  addTextToCenter(opt) {
+    const canvas = this.canvasManager.canvas;
+    if (!canvas) return;
+    const pw = this.canvasManager.PAGE_W || 1920;
+    const ph = this.canvasManager.PAGE_H || 1080;
+    const isDark = (canvas.backgroundColor || '#ffffff') === '#0e0f12' || (canvas.backgroundColor || '#ffffff') === '#18181b';
+    const fill = isDark ? '#ffffff' : '#18181b';
+
+    const textObj = new fabric.Textbox(opt.text, {
+      left: pw / 2,
+      top: ph / 2,
+      originX: 'center',
+      originY: 'center',
+      fontSize: opt.fontSize,
+      fontWeight: opt.fontWeight,
+      fontFamily: 'Inter',
+      fill: fill,
+      width: opt.fontSize > 40 ? 800 : 600,
+      textAlign: 'center',
+      selectable: true,
+      evented: true
+    });
+
+    canvas.add(textObj);
+    canvas.setActiveObject(textObj);
+    canvas.requestRenderAll();
+    this.toolManager.setTool('select');
+    this.historyManager.saveState();
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
   }
 
   openMobileSheet(title, content) {
@@ -937,11 +1258,13 @@ export class EditorApp {
     if (!sheet || !contentEl) return;
 
     if (titleEl) titleEl.textContent = title;
-    contentEl.innerHTML = '';
-    if (typeof content === 'string') {
-      contentEl.innerHTML = content;
-    } else if (content instanceof HTMLElement) {
-      contentEl.appendChild(content);
+    if (content !== contentEl) {
+      contentEl.innerHTML = '';
+      if (typeof content === 'string') {
+        contentEl.innerHTML = content;
+      } else if (content instanceof HTMLElement) {
+        contentEl.appendChild(content);
+      }
     }
 
     overlay?.classList.add('active');
@@ -961,6 +1284,15 @@ export class EditorApp {
     } else if (this._activeMobilePanel === 'layers') {
       const layersPane = document.getElementById('dock-body-layers');
       if (layersPane) this.panels.layers?.mount(layersPane);
+    } else if (this._activeMobilePanel === 'photos') {
+      const popover = document.getElementById('photos-popover');
+      if (popover) this.panels.photos?.mount(popover);
+    } else if (this._activeMobilePanel === 'icons') {
+      const popover = document.getElementById('icons-popover');
+      if (popover) this.panels.icons?.mount(popover);
+    } else if (this._activeMobilePanel === 'elements') {
+      const popover = document.getElementById('elements-popover');
+      if (popover) this.panels.elements?.mount(popover);
     }
     this._activeMobilePanel = null;
   }
@@ -969,6 +1301,7 @@ export class EditorApp {
     this._activeMobilePanel = 'properties';
     const contentEl = document.getElementById('mobile-sheet-content');
     if (contentEl && this.panels.properties) {
+      contentEl.innerHTML = '';
       this.panels.properties.mount(contentEl);
     }
     this.openMobileSheet('Design & Properties', contentEl);
@@ -978,6 +1311,7 @@ export class EditorApp {
     this._activeMobilePanel = 'layers';
     const contentEl = document.getElementById('mobile-sheet-content');
     if (contentEl && this.panels.layers) {
+      contentEl.innerHTML = '';
       this.panels.layers.mount(contentEl);
     }
     this.openMobileSheet('Layers', contentEl);
@@ -1024,19 +1358,88 @@ export class EditorApp {
     this.openMobileSheet('Slides / Pages (' + pm.pages.length + ')', container);
   }
 
+  openMobileTextSubSheet() {
+    const container = document.createElement('div');
+    container.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding:6px 0;';
+
+    const textOptions = [
+      {
+        title: 'Add a heading',
+        sub: '56px bold title text',
+        fontSize: 56,
+        fontWeight: 'bold',
+        text: 'Heading'
+      },
+      {
+        title: 'Add a subheading',
+        sub: '32px medium subtitle text',
+        fontSize: 32,
+        fontWeight: '600',
+        text: 'Subheading'
+      },
+      {
+        title: 'Add body text',
+        sub: '20px regular paragraph text',
+        fontSize: 20,
+        fontWeight: 'normal',
+        text: 'Tap to write body text. Double-tap to edit on mobile.'
+      }
+    ];
+
+    textOptions.forEach(opt => {
+      const card = document.createElement('button');
+      card.className = 'mobile-add-card';
+      card.style.cssText = 'width:100%;padding:14px 16px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;cursor:pointer;';
+      card.innerHTML = `
+        <div style="text-align:left;">
+          <div style="font-size:16px;font-weight:${opt.fontWeight};color:var(--text-primary);margin-bottom:2px;">${opt.title}</div>
+          <div style="font-size:11.5px;color:var(--text-secondary);">${opt.sub}</div>
+        </div>
+        <div style="color:var(--accent);display:flex;align-items:center;">${svg('Plus', 18)}</div>
+      `;
+      card.onclick = () => {
+        this.closeMobileSheet();
+        this.addTextToCenter(opt);
+        this.toast(`${opt.title} added`);
+      };
+      container.appendChild(card);
+    });
+
+    this.openMobileSheet('Add Text', container);
+  }
+
   openMobileAddSheet() {
     const container = document.createElement('div');
     container.className = 'mobile-add-grid';
 
     const items = [
       {
+        icon: svg('Upload', 20),
+        title: 'Upload Image',
+        desc: 'From camera, gallery or files',
+        action: async () => {
+          this.closeMobileSheet();
+          const file = await this.ops.promptUserForImage();
+          if (file) {
+            await this.canvasManager.importImageFile(file);
+            this.toast('Image uploaded to canvas');
+          }
+        }
+      },
+      {
+        icon: svg('Camera', 20),
+        title: 'Stock Photos',
+        desc: 'Unsplash HD stock library',
+        action: () => {
+          this.openMobilePhotosSheet();
+        }
+      },
+      {
         icon: svg('Type', 20),
         title: 'Text',
-        desc: 'Heading or paragraph text',
+        desc: 'Heading, subhead, paragraph',
         action: () => {
-          this.closeMobileSheet();
-          this.toolManager.setTool('text');
-          this.toast('Tap anywhere on canvas to place text');
+          this.openMobileTextSubSheet();
         }
       },
       {
@@ -1045,14 +1448,6 @@ export class EditorApp {
         desc: 'Rectangles, circles, lines',
         action: () => {
           this.openMobileShapesSubSheet();
-        }
-      },
-      {
-        icon: svg('Camera', 20),
-        title: 'Photos',
-        desc: 'Free stock photos & uploads',
-        action: () => {
-          this.openMobilePhotosSheet();
         }
       },
       {
@@ -1114,17 +1509,15 @@ export class EditorApp {
     shapes.forEach(s => {
       const btn = document.createElement('button');
       btn.className = 'mobile-add-card';
-      btn.style.cssText = 'align-items:center;text-align:center;padding:14px 6px;';
+      btn.style.cssText = 'align-items:center;text-align:center;padding:14px 6px;cursor:pointer;';
       btn.innerHTML = `
         <div style="color:var(--text-primary);display:flex;align-items:center;justify-content:center;">${s.icon}</div>
         <div style="font-size:11.5px;font-weight:600;color:var(--text-secondary);margin-top:4px;">${s.label}</div>
       `;
       btn.onclick = () => {
         this.closeMobileSheet();
-        this.toolManager.setTool('shape');
-        const st = this.toolManager.getTool('shape');
-        if (st) st.setShape(s.id);
-        this.toast(`Drag on canvas to draw ${s.label}`);
+        this.addShapeToCenter(s.id);
+        this.toast(`${s.label} added`);
       };
       container.appendChild(btn);
     });
@@ -1133,24 +1526,30 @@ export class EditorApp {
   }
 
   openMobilePhotosSheet() {
+    this._activeMobilePanel = 'photos';
     const contentEl = document.getElementById('mobile-sheet-content');
     if (contentEl && this.panels.photos) {
+      contentEl.innerHTML = '';
       this.panels.photos.mount(contentEl);
     }
     this.openMobileSheet('Stock Photos (Unsplash)', contentEl);
   }
 
   openMobileIconsSheet() {
+    this._activeMobilePanel = 'icons';
     const contentEl = document.getElementById('mobile-sheet-content');
     if (contentEl && this.panels.icons) {
+      contentEl.innerHTML = '';
       this.panels.icons.mount(contentEl);
     }
     this.openMobileSheet('Icons & Logos', contentEl);
   }
 
   openMobileElementsSheet() {
+    this._activeMobilePanel = 'elements';
     const contentEl = document.getElementById('mobile-sheet-content');
     if (contentEl && this.panels.elements) {
+      contentEl.innerHTML = '';
       this.panels.elements.mount(contentEl);
     }
     this.openMobileSheet('UI Elements & Blocks', contentEl);

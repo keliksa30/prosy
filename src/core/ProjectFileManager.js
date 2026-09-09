@@ -20,13 +20,55 @@ export class ProjectFileManager {
   saveToPrs() {
     const data = this._buildProjectData();
     const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
+    const fileName = `${this._slug(data.title)}.prs`;
+
+    // CRITICAL for iOS Safari and mobile devices:
+    // If blob type is 'application/json', iOS Safari automatically appends .json or overrides
+    // the extension to .prs.json / .json.
+    // Using 'application/octet-stream' prevents WebKit from overriding the .prs extension.
+    const blob = new Blob([json], { type: 'application/octet-stream' });
+
+    // On iOS Safari / WebKit mobile, if Web Share API is supported for files,
+    // invoke native share sheet so the user can easily choose "Save to Files" as .prs
+    const isIOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+    if (isIOS && typeof navigator.canShare === 'function' && typeof File !== 'undefined') {
+      try {
+        const file = new File([blob], fileName, { type: 'application/octet-stream' });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({
+            files: [file],
+            title: fileName
+          }).then(() => {
+            this.app.toast?.('Saved as ' + fileName);
+          }).catch((err) => {
+            if (err.name !== 'AbortError') {
+              this._downloadBlob(blob, fileName);
+            }
+          });
+          return;
+        }
+      } catch (e) {
+        // Fall back to standard anchor download
+      }
+    }
+
+    this._downloadBlob(blob, fileName);
+  }
+
+  _downloadBlob(blob, fileName) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${this._slug(data.title)}.prs`;
+    a.download = fileName;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    this.app.toast?.('Saved ' + fileName);
+    setTimeout(() => {
+      if (a.parentNode) a.parentNode.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 4000);
   }
 
   _slug(name) {
@@ -146,9 +188,9 @@ export class ProjectFileManager {
   triggerLoad() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.prs, application/json';
+    input.accept = '.prs,.json,application/json,application/octet-stream,text/plain,*/*';
     input.onchange = (e) => {
-      const file = e.target.files[0];
+      const file = e.target.files && e.target.files[0];
       if (file) {
         this.loadFromPrs(file).catch(err => this.app.toast?.('Error opening project: ' + err.message, true));
       }

@@ -67,6 +67,10 @@ export class ObjectOps {
     this._commit();
   }
 
+  deleteSelected() {
+    return this.delete();
+  }
+
   /* ---------------------------- grouping --------------------------- */
 
   async group() {

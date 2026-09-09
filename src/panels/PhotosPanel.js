@@ -243,6 +243,26 @@ export class PhotosPanel {
     `;
     host.appendChild(head);
 
+    // Upload button (local photo/image)
+    const uploadSection = document.createElement('div');
+    uploadSection.style.cssText = 'padding: 8px 12px 10px;';
+    const uploadBtn = document.createElement('button');
+    uploadBtn.className = 'btn btn-primary';
+    uploadBtn.style.cssText = 'width: 100%; justify-content: center; padding: 10px 14px; font-weight: 600; font-size: 13px; gap: 8px; box-shadow: 0 2px 10px rgba(123, 70, 248, 0.35); cursor: pointer;';
+    uploadBtn.innerHTML = `${svg('Upload', 15)} Upload from your device`;
+    uploadBtn.onclick = async () => {
+      const file = await this.app.ops.promptUserForImage();
+      if (file) {
+        await this.cm.importImageFile(file);
+        this.app.toast?.('Photo uploaded to canvas');
+        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+          this.app.closeMobileSheet?.();
+        }
+      }
+    };
+    uploadSection.appendChild(uploadBtn);
+    host.appendChild(uploadSection);
+
     // Search input
     const searchWrap = document.createElement('div');
     searchWrap.className = 'icon-search-wrap';
