@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Theme & Pen Tool on Mobile**:
   - Added dedicated **Theme** button to the mobile bottom navigation bar (`[ Slides | Add | Theme | Layers | Design ]`).
   - Added **Pen Tool** and **Theme & Styles** to the mobile "Add to Slide" sheet and More dropdown.
+- **Mobile Template & Welcome Screen Scrolling**: Fixed flexbox constraint and overflow bugs on mobile viewports so both the Welcome Screen template grid and the Template Chooser modal layout picker scroll smoothly with touch momentum.
 
 ---
 

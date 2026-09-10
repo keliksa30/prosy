@@ -15,9 +15,9 @@ export class WelcomeScreen {
     this.container = document.createElement('div');
     this.container.id = 'welcome-screen';
     this.container.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: var(--bg-workspace); z-index: 9999;
-      display: flex; flex-direction: column;`;
+      position: fixed; inset: 0; width: 100vw; height: 100%; height: 100dvh;
+      max-height: 100dvh; background: var(--bg-workspace); z-index: 9999;
+      display: flex; flex-direction: column; overflow: hidden;`;
     document.body.appendChild(this.container);
     this.render();
   }

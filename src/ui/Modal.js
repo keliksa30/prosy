@@ -14,7 +14,7 @@ export class Modal {
 
     this.element.innerHTML = `
       <div class="modal-content">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 14px;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 14px; flex-shrink: 0;">
           <h2 style="margin: 0; font-family: var(--font-headline); font-size: 17px;">${this.title}</h2>
           <button class="icobtn" id="close-${this.id}" title="Close (Esc)" style="padding: 6px;">${this.closeIcon()}</button>
         </div>
