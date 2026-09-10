@@ -152,19 +152,29 @@ export function valueRow(label, control, extra) {
 /* Range slider with live label                                        */
 /* ------------------------------------------------------------------ */
 export function slider(opts = {}) {
-  const { value = 0, min = 0, max = 100, step = 1, onChange, onInput, format } = opts;
+  const { label, value = 0, min = 0, max = 100, step = 1, onChange, onInput, format } = opts;
   const root = h('div', 'slider-wrap');
+  root.style.cssText = 'display:flex;flex-direction:column;gap:5px;width:100%;';
+
+  const fmt = (v) => (format ? format(v) : v);
+
+  const header = h('div', 'slider-header');
+  header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;font-size:12px;line-height:1.2;';
+
+  if (label) {
+    const labelEl = h('span', 'slider-label', label);
+    labelEl.style.cssText = 'color:var(--text-secondary);font-weight:500;';
+    header.appendChild(labelEl);
+  }
+
+  const valEl = h('span', 'slider-val', fmt(value));
+  valEl.style.cssText = 'color:var(--text-muted);font-size:12px;font-variant-numeric:tabular-nums;' + (!label ? 'margin-left:auto;' : '');
+  header.appendChild(valEl);
+
   const input = document.createElement('input');
   input.type = 'range';
   input.className = 'range';
   input.min = min; input.max = max; input.step = step; input.value = value;
-
-  const fmt = (v) => (format ? format(v) : v);
-  const valEl = h('span', 'slider-val', fmt(value));
-
-  const bar = h('div', 'slider-bar');
-  bar.appendChild(valEl);
-  bar.appendChild(input);
 
   input.addEventListener('input', () => {
     const v = parseFloat(input.value);
@@ -175,7 +185,9 @@ export function slider(opts = {}) {
     const v = parseFloat(input.value);
     if (onChange) onChange(v);
   });
-  root.appendChild(bar);
+
+  root.appendChild(header);
+  root.appendChild(input);
   root.setValue = (v) => { input.value = v; valEl.textContent = fmt(v); };
   return root;
 }

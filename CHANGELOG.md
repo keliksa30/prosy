@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0] - 2026-09-10
+
+### 🌫️ Figma-Style Gaussian Blur & Background Blur (Frosted Glass)
+- **Gaussian Blur**: True shape and image diffusion blur implemented natively without relying on drop shadow tricks.
+- **Background Blur (Frosted Glass)**: Realtime backdrop sampling blur ala Figma. Objects sample underlying canvas graphics with `ctx.filter = blur(...)` and local geometry clipping. Includes a 1-click **"Apply Frosted Glass Style"** preset button (`fill: rgba(255,255,255,0.22)`, `stroke: rgba(255,255,255,0.45)`).
+- **Decoupled from Shadow**: Blur effects no longer interfere with or overwrite Fabric's native `obj.shadow`.
+- **Pipeline Architecture Fix**: Intercepts `drawObject` and bypasses cache when effects are active, ensuring 100% of shapes, vectors, and text render effects without bounding box clipping.
+
+### ✨ Dedicated Glow Effect
+- **Independent Luminescence Aura**: Added a dedicated **Glow Effect** section in the properties panel (`[ None | Glow ]`).
+- **Custom Color & Neon Palette**: Color picker with quick-access neon presets (Cyan `#00F0FF`, Purple `#A855F7`, Pink `#EC4899`, Amber `#F59E0B`, Emerald `#10B981`, White `#FFFFFF`).
+- **Radius Slider**: Smooth radius slider (1–60px). Coexists seamlessly with Drop Shadow and Blur.
+
+### 🌑 Shadow Opacity Slider
+- **Dedicated Shadow Opacity Control**: Added an opacity slider (0%–100%) to the Shadow section with automatic RGBA color conversion and preview.
+
+### Advanced 4-Corner Radius & Interactive Circle Handles
+- **Independent 4-Corner Radii**: Added support for individual corner radii (Top-Left, Top-Right, Bottom-Right, Bottom-Left) in both panel controls and canvas rendering.
+- **On-Canvas Circular Corner Handles**: All 4 corners of rectangles now feature interactive circular handles on the canvas ala Figma, allowing dragging to adjust radius interactively. Holding Alt/Option adjusts only the targeted corner.
+- **Properties Panel Toggle**: Added segmented control [ All corners | Independent ] with 4-cell inputs (TL, TR, BL, BR) and unified slider.
+
+
+### 📱 100% Scannable ISO/IEC 18004 QR Code Generator
+- **Scanner Compatibility**: Powered by the industry-standard `qrcode` engine with high-DPI retina rendering (`dpr = 2`). Verified 100% scannable by smartphone cameras and `jsqr`.
+- **Top Toolbar & Mobile Access**: Direct access button placed right next to Photos in the top toolbar, as well as the mobile "Add to Slide" bottom sheet.
+- **Clickable Hyperlink PDF Export**: Generated QR codes automatically store target URLs in object metadata for interactive PDF exports.
+
+### 💻 macOS Code Snippet Visual Overhaul
+- **Pixel-Perfect Terminal Block**: Replaced Fabric group layout with high-DPI canvas rendering, eliminating floating window dots and misaligned code text.
+- **Rich Syntax Highlighting**: Real token coloring for keywords, strings, numbers, comments, and functions across 4 themes (*One Dark, Dracula, GitHub Light, Monokai*).
+
+---
+
+
 ## [2.3.1] - 2026-09-10
 
 ### 🐛 Properties Panel Scroll Stability Fix

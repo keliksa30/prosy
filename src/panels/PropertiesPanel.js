@@ -11,6 +11,8 @@ import { SHAPE_DEFS } from '../shapes/defs.js';
 import { createCodeSnippetGroup, CODE_LANGUAGES, CODE_THEMES } from '../tools/CodeSnippetBlock.js';
 import { QRCodeGenerator } from '../tools/QRCodeGenerator.js';
 import { Modal } from '../ui/Modal.js';
+import { applyBlurEffect, applyGlowEffect } from '../core/EffectsRenderer.js';
+import { getCornerRadii } from '../core/RadiusControl.js';
 
 const BG_PRESETS = [
   ['#ffffff', 'White'], ['#f7f6f3', 'Paper'], ['#0f172a', 'Ink'], ['#18181b', 'Charcoal'],
@@ -316,6 +318,7 @@ export class PropertiesPanel {
     }
     scroll.appendChild(this._hyperlinkSection(obj));
     scroll.appendChild(this._appearanceSection(obj));
+    scroll.appendChild(this._glowSection(obj));
     scroll.appendChild(this._shadowSection(obj));
     scroll.appendChild(this._arrangeSection(obj));
     scroll.appendChild(this._dangerSection(obj));
@@ -1223,49 +1226,147 @@ export class PropertiesPanel {
     const body = document.createElement('div');
     body.style.display = 'flex';
     body.style.flexDirection = 'column';
-    body.style.gap = '8px';
+    body.style.gap = '10px';
 
-    const visualRx = () => Math.min(this._sizeX(obj) / 2, this._sizeY(obj) / 2, (obj.rx || 0) * (obj.scaleX || 1));
-    const applyRx = (v, commit) => {
-      const sx = obj.scaleX || 1;
-      const max = Math.min(this._sizeX(obj) / 2, this._sizeY(obj) / 2);
-      const capped = Math.max(0, Math.min(max, v));
-      obj.set({ rx: sx ? capped / sx : 0, ry: sx ? capped / sx : 0 });
-      if (commit) this._commitLive(obj, {});
-      else this.canvas.requestRenderAll();
+    const maxR = Math.max(1, Math.round(Math.min(this._sizeX(obj), this._sizeY(obj)) / 2));
+    const sx = obj.scaleX || 1;
+
+    const getRadii = () => {
+      const raw = getCornerRadii(obj);
+      return raw.map(r => Math.round(r * sx));
     };
 
-    const sl = slider({
-      value: Math.round(visualRx()), min: 0, max: Math.max(1, Math.round(Math.min(this._sizeX(obj), this._sizeY(obj)) / 2)), step: 1,
-      format: (v) => `${Math.round(v)} px`,
-      onInput: (v) => applyRx(v, false),
-      onChange: (v) => applyRx(v, true)
-    });
-    body.appendChild(sl);
+    const isIndependent = Boolean(obj._independentCorners);
 
-    const presets = document.createElement('div');
-    presets.className = 'radius-presets';
-    [[0, 'Sharp'], [12, 'Soft'], [24, 'Rounded'], [40, 'Rounder']].forEach(([v, name]) => {
-      const b = document.createElement('button');
-      b.className = 'chip-btn';
-      b.textContent = name;
-      b.addEventListener('click', () => { applyRx(v, true); this.render(); });
-      presets.appendChild(b);
+    const modeSeg = segmented([
+      { value: 'all', label: 'All corners' },
+      { value: 'independent', label: 'Independent' }
+    ], {
+      value: isIndependent ? 'independent' : 'all',
+      onChange: (v) => {
+        obj._independentCorners = (v === 'independent');
+        if (!obj._independentCorners) {
+          const [tl] = getRadii();
+          this._applyCornerRadii(obj, [tl, tl, tl, tl], true);
+        }
+        this.render();
+      }
     });
-    const full = document.createElement('button');
-    full.className = 'chip-btn';
-    full.textContent = 'Full';
-    full.title = 'Fully rounded (pill)';
-    full.addEventListener('click', () => { applyRx(99999, true); this.render(); });
-    presets.appendChild(full);
-    body.appendChild(presets);
+    body.appendChild(modeSeg);
+
+    if (!isIndependent) {
+      const [r] = getRadii();
+      const sl = slider({
+        label: 'Radius',
+        value: r,
+        min: 0,
+        max: maxR,
+        step: 1,
+        format: (v) => `${v} px`,
+        onInput: (v) => this._applyCornerRadii(obj, [v, v, v, v], false),
+        onChange: (v) => this._applyCornerRadii(obj, [v, v, v, v], true)
+      });
+      body.appendChild(sl);
+
+      const presets = document.createElement('div');
+      presets.className = 'radius-presets';
+      [[0, 'Sharp'], [12, 'Soft'], [24, 'Rounded'], [40, 'Rounder']].forEach(([v, name]) => {
+        const b = document.createElement('button');
+        b.className = 'chip-btn';
+        b.textContent = name;
+        b.addEventListener('click', () => {
+          this._applyCornerRadii(obj, [v, v, v, v], true);
+          this.render();
+        });
+        presets.appendChild(b);
+      });
+      const full = document.createElement('button');
+      full.className = 'chip-btn';
+      full.textContent = 'Full';
+      full.title = 'Fully rounded (pill)';
+      full.addEventListener('click', () => {
+        this._applyCornerRadii(obj, [maxR, maxR, maxR, maxR], true);
+        this.render();
+      });
+      presets.appendChild(full);
+      body.appendChild(presets);
+    } else {
+      const [tl, tr, br, bl] = getRadii();
+
+      const grid = document.createElement('div');
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = '1fr 1fr';
+      grid.style.gap = '8px';
+
+      const createCornerCell = (label, val, cornerIdx) => {
+        const cell = document.createElement('div');
+        cell.className = 'prop-cell';
+        cell.style.display = 'flex';
+        cell.style.flexDirection = 'column';
+        cell.style.gap = '4px';
+
+        const lbl = document.createElement('span');
+        lbl.className = 'prop-cell-label';
+        lbl.style.fontSize = '10px';
+        lbl.style.fontWeight = '600';
+        lbl.style.color = 'var(--text-secondary, #94a3b8)';
+        lbl.textContent = label;
+        cell.appendChild(lbl);
+
+        const s = scrub({
+          value: val,
+          min: 0,
+          max: maxR,
+          step: 1,
+          suffix: 'px',
+          onInput: (v) => {
+            const radii = getRadii();
+            radii[cornerIdx] = v;
+            this._applyCornerRadii(obj, radii, false);
+          },
+          onChange: (v) => {
+            const radii = getRadii();
+            radii[cornerIdx] = v;
+            this._applyCornerRadii(obj, radii, true);
+          }
+        });
+        cell.appendChild(s);
+        return cell;
+      };
+
+      grid.appendChild(createCornerCell('Top-Left (TL)', tl, 0));
+      grid.appendChild(createCornerCell('Top-Right (TR)', tr, 1));
+      grid.appendChild(createCornerCell('Bottom-Left (BL)', bl, 3));
+      grid.appendChild(createCornerCell('Bottom-Right (BR)', br, 2));
+
+      body.appendChild(grid);
+    }
 
     const note = document.createElement('div');
     note.className = 'panel-note';
-    note.textContent = 'Tip: click Full to turn a rectangle into a pill.';
+    note.textContent = 'Drag circular corner handles on the shape or hold Alt to edit one corner.';
     body.appendChild(note);
+
     return this._section('Corner radius', body);
   }
+
+  _applyCornerRadii(obj, visualRadii, commit) {
+    const sx = obj.scaleX || 1;
+    const maxLocal = Math.min((obj.width || 0) / 2, (obj.height || 0) / 2);
+    const local = visualRadii.map(r => Math.max(0, Math.min(maxLocal, Math.round(r / (sx || 1)))));
+
+    obj.cornerRadii = local;
+    obj.rx = local[0];
+    obj.ry = local[0];
+    obj.dirty = true;
+
+    if (commit) {
+      this._commitLive(obj, {});
+    } else {
+      this.canvas.requestRenderAll();
+    }
+  }
+
 
   _iconSection(obj) {
     const body = document.createElement('div');
@@ -1386,13 +1487,13 @@ export class PropertiesPanel {
     return this._section('Image', body);
   }
 
-  /* ---------------- appearance / arrange / danger ---------------- */
+  /* ---------------- appearance / blur / glow / shadow ---------------- */
 
   _appearanceSection(obj) {
     const body = document.createElement('div');
     body.style.display = 'flex';
     body.style.flexDirection = 'column';
-    body.style.gap = '10px';
+    body.style.gap = '12px';
 
     const op = slider({
       label: 'Opacity',
@@ -1406,47 +1507,298 @@ export class PropertiesPanel {
     });
     body.appendChild(op);
 
-    // Efek Blur (Gaussian Blur & Soft Edge)
-    const currentBlur = obj._blurValue ?? 0;
-    const blurControl = slider({
-      label: 'Blur',
-      value: currentBlur, min: 0, max: 40, step: 1, format: (v) => `${v}px`,
-      onInput: (v) => {
-        obj._blurValue = v;
-        if (obj.isType && obj.isType('image')) {
-          if (!obj.filters) obj.filters = [];
-          const idx = obj.filters.findIndex(f => f && f.type === 'Blur');
-          if (v > 0) {
-            const blurFilter = new fabric.filters.Blur({ blur: v / 40 });
-            if (idx >= 0) obj.filters[idx] = blurFilter;
-            else obj.filters.push(blurFilter);
-          } else if (idx >= 0) {
-            obj.filters.splice(idx, 1);
-          }
-          obj.applyFilters();
-        } else {
-          if (v > 0) {
-            obj.set('shadow', new fabric.Shadow({
-              color: 'rgba(0,0,0,0.5)',
-              blur: v * 1.5,
-              offsetX: 0,
-              offsetY: 0
-            }));
-          } else {
-            obj.set('shadow', null);
-          }
-        }
+    // Figma-style Blur: None, Gaussian Blur, Background Blur (Frosted Glass)
+    const blurContainer = document.createElement('div');
+    blurContainer.style.display = 'flex';
+    blurContainer.style.flexDirection = 'column';
+    blurContainer.style.gap = '8px';
+
+    const blurHeader = document.createElement('div');
+    blurHeader.style.display = 'flex';
+    blurHeader.style.justifyContent = 'space-between';
+    blurHeader.style.alignItems = 'center';
+    blurHeader.innerHTML = `<span style="font-size:12px;font-weight:600;color:var(--text-secondary);">Blur Effect</span>`;
+    blurContainer.appendChild(blurHeader);
+
+    let currentBlurType = obj._blurType || ((obj._blurRadius || obj._blurValue) > 0 ? 'gaussian' : 'none');
+    if (currentBlurType === 'layer') currentBlurType = 'gaussian'; // migrate old layer blur
+
+    const blurTypeSeg = segmented([
+      { value: 'none', label: 'None' },
+      { value: 'gaussian', label: 'Gaussian' },
+      { value: 'background', label: 'Background' }
+    ], {
+      value: currentBlurType,
+      onChange: (v) => {
+        const radius = (v === 'none') ? 0 : (obj._blurRadius || obj._blurValue || 16);
+        applyBlurEffect(obj, v, radius);
         this.canvas.requestRenderAll();
-      },
-      onChange: () => {
         this.app.historyManager.saveState();
         document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+        this.render();
       }
     });
-    body.appendChild(blurControl);
+    blurContainer.appendChild(blurTypeSeg);
 
+    if (currentBlurType !== 'none') {
+      const radiusControl = slider({
+        label: 'Blur Radius',
+        value: obj._blurRadius || obj._blurValue || 16,
+        min: 1,
+        max: 50,
+        step: 1,
+        format: (v) => `${v}px`,
+        onInput: (v) => {
+          applyBlurEffect(obj, currentBlurType, v);
+          this.canvas.requestRenderAll();
+        },
+        onChange: (v) => {
+          applyBlurEffect(obj, currentBlurType, v);
+          this.canvas.requestRenderAll();
+          this.app.historyManager.saveState();
+          document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+        }
+      });
+      blurContainer.appendChild(radiusControl);
+
+      if (currentBlurType === 'background') {
+        const frostedBtn = document.createElement('button');
+        frostedBtn.type = 'button';
+        frostedBtn.className = 'btn-secondary';
+        frostedBtn.style.fontSize = '11px';
+        frostedBtn.style.fontWeight = '500';
+        frostedBtn.style.padding = '7px 10px';
+        frostedBtn.style.borderRadius = '6px';
+        frostedBtn.style.display = 'flex';
+        frostedBtn.style.alignItems = 'center';
+        frostedBtn.style.justifyContent = 'center';
+        frostedBtn.style.gap = '6px';
+        frostedBtn.style.width = '100%';
+        frostedBtn.style.background = 'rgba(123, 70, 248, 0.12)';
+        frostedBtn.style.border = '1px solid rgba(123, 70, 248, 0.3)';
+        frostedBtn.style.color = 'var(--text-primary, #fff)';
+        frostedBtn.style.cursor = 'pointer';
+        frostedBtn.style.marginTop = '2px';
+        frostedBtn.innerHTML = `<span>Apply Frosted Glass Style</span>`;
+        frostedBtn.onclick = () => this._applyFrostedGlass(obj);
+        blurContainer.appendChild(frostedBtn);
+
+        const normalizeBtn = document.createElement('button');
+        normalizeBtn.type = 'button';
+        normalizeBtn.className = 'btn-secondary';
+        normalizeBtn.style.fontSize = '11px';
+        normalizeBtn.style.fontWeight = '500';
+        normalizeBtn.style.padding = '7px 10px';
+        normalizeBtn.style.borderRadius = '6px';
+        normalizeBtn.style.display = 'flex';
+        normalizeBtn.style.alignItems = 'center';
+        normalizeBtn.style.justifyContent = 'center';
+        normalizeBtn.style.gap = '6px';
+        normalizeBtn.style.width = '100%';
+        normalizeBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+        normalizeBtn.style.border = '1px solid var(--border-color, rgba(255, 255, 255, 0.15))';
+        normalizeBtn.style.color = 'var(--text-secondary, #94a3b8)';
+        normalizeBtn.style.cursor = 'pointer';
+        normalizeBtn.style.marginTop = '4px';
+        normalizeBtn.innerHTML = `<span>Normalize</span>`;
+        normalizeBtn.onclick = () => {
+          const defaultFill = FILL_DEFAULTS[obj.type] || '#7b46f8';
+          obj.set({
+            fill: defaultFill,
+            stroke: '',
+            strokeWidth: 0
+          });
+          applyBlurEffect(obj, 'none', 0);
+          this.canvas.requestRenderAll();
+          this.app.historyManager.saveState();
+          document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+          this.render();
+        };
+        blurContainer.appendChild(normalizeBtn);
+      }
+    }
+
+    body.appendChild(blurContainer);
     return this._section('Appearance', body);
   }
+
+  _applyFrostedGlass(obj) {
+    const curFill = obj.fill;
+
+    // A. Gradient frosted glass (Linear or Radial)
+    if (curFill && (curFill.type === 'linear' || curFill.type === 'radial' || Array.isArray(curFill.colorStops))) {
+      const coords = curFill.coords || { x1: 0, y1: 0, x2: 1, y2: 1 };
+      const stops = (curFill.colorStops || []).map(st => {
+        const { hex } = this._parseColorAlpha(st.color);
+        return {
+          offset: st.offset,
+          color: this._hexAndAlphaToRgba(hex, 22)
+        };
+      });
+
+      const firstStop = stops[0]?.color || 'rgba(255, 255, 255, 0.45)';
+      const { hex: firstHex } = this._parseColorAlpha(firstStop);
+
+      const glassGradient = new fabric.Gradient({
+        type: curFill.type || 'linear',
+        gradientUnits: curFill.gradientUnits || 'percentage',
+        coords: { ...coords },
+        colorStops: stops
+      });
+
+      obj.set({
+        fill: glassGradient,
+        stroke: this._hexAndAlphaToRgba(firstHex, 45),
+        strokeWidth: obj.strokeWidth || 1.5
+      });
+    } else {
+      // B. Solid color frosted glass (Hex, RGBA, RGB, Named)
+      const fillStr = (curFill && typeof curFill === 'string' && curFill !== 'transparent')
+        ? curFill
+        : (FILL_DEFAULTS[obj.type] || '#7b46f8');
+
+      const { hex } = this._parseColorAlpha(fillStr);
+      const glassFill = this._hexAndAlphaToRgba(hex, 22);
+      const glassStroke = this._hexAndAlphaToRgba(hex, 45);
+
+      obj.set({
+        fill: glassFill,
+        stroke: glassStroke,
+        strokeWidth: obj.strokeWidth || 1.5
+      });
+    }
+
+    applyBlurEffect(obj, 'background', obj._blurRadius || 20);
+    this.canvas.requestRenderAll();
+    this.app.historyManager.saveState();
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+    this.render();
+  }
+
+  /* ---------------- glow effect ---------------- */
+
+  _glowSection(obj) {
+    const body = document.createElement('div');
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '8px';
+
+    const has = Boolean(obj._glowActive);
+    const seg = segmented([
+      { value: 'none', label: 'None' },
+      { value: 'glow', label: 'Glow' }
+    ], {
+      value: has ? 'glow' : 'none',
+      onChange: (v) => {
+        const active = (v === 'glow');
+        applyGlowEffect(obj, active, obj._glowColor || '#00F0FF', obj._glowRadius || 20);
+        this.canvas.requestRenderAll();
+        this.app.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+        this.render();
+      }
+    });
+    body.appendChild(seg);
+
+    if (has) {
+      const pane = document.createElement('div');
+      pane.style.display = 'flex';
+      pane.style.flexDirection = 'column';
+      pane.style.gap = '10px';
+
+      const colorRow = document.createElement('div');
+      colorRow.style.display = 'flex';
+      colorRow.style.flexDirection = 'column';
+      colorRow.style.gap = '6px';
+
+      const colorLabel = document.createElement('div');
+      colorLabel.style.fontSize = '12px';
+      colorLabel.style.fontWeight = '600';
+      colorLabel.style.color = 'var(--text-secondary)';
+      colorLabel.textContent = 'Glow Color';
+      colorRow.appendChild(colorLabel);
+
+      const currentColor = obj._glowColor || '#00F0FF';
+      const cc = colorControl({
+        value: /^#[0-9a-fA-F]{6}$/.test(String(currentColor)) ? String(currentColor) : '#00F0FF',
+        onInput: (c) => {
+          applyGlowEffect(obj, true, c, obj._glowRadius || 20);
+          this.canvas.requestRenderAll();
+        },
+        onChange: (c) => {
+          applyGlowEffect(obj, true, c, obj._glowRadius || 20);
+          this.canvas.requestRenderAll();
+          this.app.historyManager.saveState();
+          document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+        }
+      });
+      colorRow.appendChild(cc);
+
+      // Neon presets palette
+      const neonPresets = [
+        { color: '#00F0FF', label: 'Cyan' },
+        { color: '#A855F7', label: 'Purple' },
+        { color: '#EC4899', label: 'Pink' },
+        { color: '#F59E0B', label: 'Amber' },
+        { color: '#10B981', label: 'Emerald' },
+        { color: '#FFFFFF', label: 'White' }
+      ];
+      const chipsRow = document.createElement('div');
+      chipsRow.style.display = 'flex';
+      chipsRow.style.gap = '6px';
+      chipsRow.style.flexWrap = 'wrap';
+
+      neonPresets.forEach(preset => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.title = preset.label;
+        chip.style.width = '20px';
+        chip.style.height = '20px';
+        chip.style.borderRadius = '50%';
+        chip.style.border = (currentColor.toUpperCase() === preset.color.toUpperCase())
+          ? '2px solid var(--accent, #7b46f8)'
+          : '1px solid rgba(255,255,255,0.2)';
+        chip.style.backgroundColor = preset.color;
+        chip.style.cursor = 'pointer';
+        chip.style.boxShadow = `0 0 6px ${preset.color}`;
+        chip.onclick = () => {
+          applyGlowEffect(obj, true, preset.color, obj._glowRadius || 20);
+          this.canvas.requestRenderAll();
+          this.app.historyManager.saveState();
+          document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+          this.render();
+        };
+        chipsRow.appendChild(chip);
+      });
+      colorRow.appendChild(chipsRow);
+      pane.appendChild(colorRow);
+
+      const radSlider = slider({
+        label: 'Radius',
+        value: Math.round(obj._glowRadius || 20),
+        min: 1,
+        max: 60,
+        step: 1,
+        format: (v) => `${v}px`,
+        onInput: (v) => {
+          applyGlowEffect(obj, true, obj._glowColor || '#00F0FF', v);
+          this.canvas.requestRenderAll();
+        },
+        onChange: (v) => {
+          applyGlowEffect(obj, true, obj._glowColor || '#00F0FF', v);
+          this.canvas.requestRenderAll();
+          this.app.historyManager.saveState();
+          document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+        }
+      });
+      pane.appendChild(radSlider);
+
+      body.appendChild(pane);
+    }
+
+    return this._section('Glow', body);
+  }
+
 
   /* ---------------- code snippet section ---------------- */
 
@@ -1554,13 +1906,17 @@ export class PropertiesPanel {
       top,
       width: data.width || 560
     });
+    if (oldGroup.scaleX && oldGroup.scaleX !== 0.5) {
+      newGroup.scaleX = oldGroup.scaleX;
+      newGroup.scaleY = oldGroup.scaleY;
+    }
 
     this.canvas.remove(oldGroup);
     this.canvas.add(newGroup);
     this.canvas.setActiveObject(newGroup);
     this.canvas.requestRenderAll();
     this.app.historyManager.saveState();
-    document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: newGroup } }));
     this.render();
   }
 
@@ -1748,6 +2104,38 @@ export class PropertiesPanel {
 
   /* ---------------- shadow / effects ---------------- */
 
+  _parseColorAlpha(colorStr) {
+    if (!colorStr) return { hex: '#000000', opacity: 100 };
+    const s = String(colorStr).trim();
+    if (s.startsWith('#')) {
+      if (s.length === 9) {
+        const hex = s.slice(0, 7);
+        const a = parseInt(s.slice(7, 9), 16) / 255;
+        return { hex, opacity: Math.round(a * 100) };
+      }
+      return { hex: s.length === 7 ? s : '#000000', opacity: 100 };
+    }
+    const match = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    if (match) {
+      const r = parseInt(match[1]);
+      const g = parseInt(match[2]);
+      const b = parseInt(match[3]);
+      const a = match[4] !== undefined ? parseFloat(match[4]) : 1;
+      const toHex = (n) => n.toString(16).padStart(2, '0');
+      return { hex: `#${toHex(r)}${toHex(g)}${toHex(b)}`, opacity: Math.round(a * 100) };
+    }
+    return { hex: '#000000', opacity: 100 };
+  }
+
+  _hexAndAlphaToRgba(hex, opacityPercent) {
+    const clean = hex.replace('#', '');
+    const r = parseInt(clean.substring(0, 2), 16) || 0;
+    const g = parseInt(clean.substring(2, 4), 16) || 0;
+    const b = parseInt(clean.substring(4, 6), 16) || 0;
+    const a = Math.max(0, Math.min(1, opacityPercent / 100));
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  }
+
   _shadowSection(obj) {
     const body = document.createElement('div');
     body.style.display = 'flex';
@@ -1760,7 +2148,7 @@ export class PropertiesPanel {
       { value: 'shadow', label: 'Shadow' }
     ], { value: has ? 'shadow' : 'none', onChange: (v) => {
       if (v === 'shadow' && !obj.shadow) {
-        this._applyShadow(obj, { color: '#000000', blur: 18, offsetX: 0, offsetY: 8, affectStroke: true }, true);
+        this._applyShadow(obj, { color: 'rgba(0, 0, 0, 0.35)', blur: 18, offsetX: 0, offsetY: 8, affectStroke: true }, true);
       } else if (v === 'none' && obj.shadow) {
         obj.set('shadow', null);
         this._commitLive(obj, {});
@@ -1776,15 +2164,49 @@ export class PropertiesPanel {
       pane.style.gap = '8px';
 
       const sh = obj.shadow;
+      const { hex: shadowHex, opacity: shadowOpacity } = this._parseColorAlpha(sh.color);
+
+      const colorRow = document.createElement('div');
+      colorRow.style.display = 'flex';
+      colorRow.style.flexDirection = 'column';
+      colorRow.style.gap = '8px';
+
       const cc = colorControl({
-        value: /^#[0-9a-fA-F]{6}$/.test(String(sh.color)) ? String(sh.color) : '#000000',
-        onInput: (c) => this._applyShadow(obj, { color: c }, false),
-        onChange: (c) => this._applyShadow(obj, { color: c }, true)
+        value: shadowHex,
+        onInput: (c) => {
+          const newCol = this._hexAndAlphaToRgba(c, shadowOpacity);
+          this._applyShadow(obj, { color: newCol }, false);
+        },
+        onChange: (c) => {
+          const newCol = this._hexAndAlphaToRgba(c, shadowOpacity);
+          this._applyShadow(obj, { color: newCol }, true);
+        }
       });
-      pane.appendChild(cc);
+      colorRow.appendChild(cc);
+
+      // Shadow Opacity Slider
+      const opSlider = slider({
+        label: 'Shadow Opacity',
+        value: shadowOpacity,
+        min: 0,
+        max: 100,
+        step: 1,
+        format: (v) => `${v}%`,
+        onInput: (v) => {
+          const newCol = this._hexAndAlphaToRgba(shadowHex, v);
+          this._applyShadow(obj, { color: newCol }, false);
+        },
+        onChange: (v) => {
+          const newCol = this._hexAndAlphaToRgba(shadowHex, v);
+          this._applyShadow(obj, { color: newCol }, true);
+        }
+      });
+      colorRow.appendChild(opSlider);
+      pane.appendChild(colorRow);
 
       const blur = slider({
-        value: Math.round(sh.blur || 0), min: 0, max: 80, step: 1, format: (v) => `${v} px blur`,
+        label: 'Blur',
+        value: Math.round(sh.blur || 0), min: 0, max: 80, step: 1, format: (v) => `${v}px`,
         onInput: (v) => this._applyShadow(obj, { blur: v }, false),
         onChange: (v) => this._applyShadow(obj, { blur: v }, true)
       });
@@ -1812,8 +2234,8 @@ export class PropertiesPanel {
       pane.appendChild(offGrid);
 
       const presets = [
-        ['Soft', '#000000', 24, 0, 8], ['Hard', '#000000', 2, 4, 4],
-        ['Violet glow', '#7b46f8', 34, 0, 0], ['Floating', '#000000', 40, 0, 18]
+        ['Soft', 'rgba(0,0,0,0.25)', 24, 0, 8], ['Hard', 'rgba(0,0,0,0.6)', 2, 4, 4],
+        ['Violet glow', 'rgba(123,70,248,0.5)', 34, 0, 0], ['Floating', 'rgba(0,0,0,0.3)', 40, 0, 18]
       ];
       const chips = document.createElement('div');
       chips.className = 'inline-row';
@@ -1831,6 +2253,7 @@ export class PropertiesPanel {
     }
     return this._section('Shadow', body);
   }
+
 
   _applyShadow(obj, fields, commit) {
     let sh = obj.shadow;

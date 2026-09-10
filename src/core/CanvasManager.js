@@ -2,6 +2,7 @@ import * as fabric from 'fabric';
 import { installRadiusControls } from './RadiusControl.js';
 import { SmartGuides } from './SmartGuides.js';
 import { PathEditMode } from './PathEditMode.js';
+import { installEffectsRenderer } from './EffectsRenderer.js';
 
 const RULER = 18; // px chrome strip for the rulers
 
@@ -62,6 +63,8 @@ export class CanvasManager {
     const canvasEl = document.createElement('canvas');
     canvasEl.id = this.containerId;
     this.wrapper.appendChild(canvasEl);
+
+    installEffectsRenderer();
 
     this.canvas = new fabric.Canvas(this.containerId, {
       width: this.PAGE_W,

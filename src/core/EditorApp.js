@@ -264,6 +264,10 @@ export class EditorApp {
           <div class="photos-popover" id="photos-popover" style="display:none"></div>
         </div>
 
+        <button class="tool-btn" id="btn-tool-qrcode" title="Generate QR code from link">
+          ${svg('QrCode', 19)}<span>QR Code</span>
+        </button>
+
         <div style="flex:1"></div>
 
         <button class="tool-btn" id="btn-add-page" title="Add a page after the current one">
@@ -456,6 +460,7 @@ export class EditorApp {
     this.setupIconsMenu();
     this.setupElementsMenu();
     this.setupPhotosMenu();
+    this.setupQRCodeMenu();
     this.setupMobileUI();
 
     document.getElementById('btn-add-page').onclick = () => this.ops.addPageAfterCurrent();
@@ -716,6 +721,16 @@ export class EditorApp {
       }
     });
     this._closePhotosMenu = () => { pop.style.display = 'none'; };
+  }
+
+  setupQRCodeMenu() {
+    const btn = document.getElementById('btn-tool-qrcode');
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._closeAllPopovers();
+      this.showQRCodeDialog();
+    });
   }
 
   /* ------------------------ dock tabs ------------------------ */
@@ -1959,7 +1974,7 @@ export class EditorApp {
           <div>
             <div style="display:flex;align-items:center;gap:8px;">
               <h3 style="margin:0;font-size:18px;font-weight:700;color:var(--text-primary);font-family:var(--font-headline);">Prosy</h3>
-              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.3.1</span>
+              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.3.2</span>
             </div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Modern Page-Based Visual Designer for Portfolios & Pitch Decks</div>
           </div>
@@ -2004,7 +2019,7 @@ export class EditorApp {
 
   showQRCodeDialog(initialUrl = '') {
     const modalId = 'qr-code-dialog';
-    const activePrimary = this.themeManager ? this.themeManager.getToken('primary') : '#007AFF';
+    const activePrimary = this.themeManager?.tokens?.primary || '#007AFF';
     let currentColor = '#000000';
     let currentBg = '#ffffff';
 
@@ -2055,14 +2070,18 @@ export class EditorApp {
     const inputBg = document.getElementById('qr-modal-bg');
     const previewEl = document.getElementById('qr-modal-preview');
 
-    const updatePreview = () => {
+    const updatePreview = async () => {
       const val = inputUrl ? inputUrl.value.trim() || 'https://prosy.design' : 'https://prosy.design';
-      const svgCode = QRCodeGenerator.generateSVG(val, {
-        size: 180,
-        color: currentColor,
-        background: currentBg
-      });
-      if (previewEl) previewEl.innerHTML = svgCode;
+      try {
+        const svgCode = await QRCodeGenerator.generateSVG(val, {
+          size: 180,
+          color: currentColor,
+          background: currentBg
+        });
+        if (previewEl) previewEl.innerHTML = svgCode;
+      } catch (e) {
+        console.error('QR preview error', e);
+      }
     };
 
     if (inputUrl) inputUrl.addEventListener('input', updatePreview);
@@ -2098,8 +2117,9 @@ export class EditorApp {
         return;
       }
       try {
+        const canvas = this.canvasManager.getCanvas();
         const vp = this.canvasManager.getViewport();
-        const pan = this.canvas.viewportTransform;
+        const pan = canvas ? canvas.viewportTransform : [1, 0, 0, 1, 0, 0];
         const zoom = this.canvasManager.getZoom();
         const size = 200;
 
@@ -2118,9 +2138,9 @@ export class EditorApp {
           top: Math.round(top)
         });
 
-        this.canvas.add(qrImg);
-        this.canvas.setActiveObject(qrImg);
-        this.canvas.requestRenderAll();
+        canvas.add(qrImg);
+        canvas.setActiveObject(qrImg);
+        canvas.requestRenderAll();
         if (this.historyManager) this.historyManager.saveState();
         document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
         this.toast('QR Code added to slide');

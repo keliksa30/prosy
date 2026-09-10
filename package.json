@@ -1,6 +1,6 @@
 {
   "name": "prosy",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,12 +10,14 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "jsqr": "^1.4.0",
     "vite": "^8.2.2"
   },
   "dependencies": {
     "fabric": "^7.4.0",
     "jspdf": "^4.2.1",
     "lucide": "^1.43.0",
-    "pptxgenjs": "^4.0.1"
+    "pptxgenjs": "^4.0.1",
+    "qrcode": "^1.5.4"
   }
 }
