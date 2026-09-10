@@ -1525,24 +1525,15 @@ export class PropertiesPanel {
     let currentBlurType = obj._blurType || ((obj._blurRadius || obj._blurValue) > 0 ? 'gaussian' : 'none');
     if (currentBlurType === 'layer') currentBlurType = 'gaussian'; // migrate old layer blur
 
-    const blurTypeSeg = segmented([
-      { value: 'none', label: 'None' },
-      { value: 'gaussian', label: 'Gaussian' },
-      { value: 'background', label: 'Background' }
-    ], {
-      value: currentBlurType,
-      onChange: (v) => {
-        const radius = (v === 'none') ? 0 : (obj._blurRadius || obj._blurValue || 16);
-        applyBlurEffect(obj, v, radius);
-        this.canvas.requestRenderAll();
-        this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
-        this.render();
-      }
-    });
-    blurContainer.appendChild(blurTypeSeg);
+    const subControls = document.createElement('div');
+    subControls.style.display = 'flex';
+    subControls.style.flexDirection = 'column';
+    subControls.style.gap = '8px';
 
-    if (currentBlurType !== 'none') {
+    const renderSubControls = (type) => {
+      subControls.innerHTML = '';
+      if (type === 'none') return;
+
       const radiusControl = slider({
         label: 'Blur Radius',
         value: obj._blurRadius || obj._blurValue || 16,
@@ -1551,19 +1542,19 @@ export class PropertiesPanel {
         step: 1,
         format: (v) => `${v}px`,
         onInput: (v) => {
-          applyBlurEffect(obj, currentBlurType, v);
+          applyBlurEffect(obj, type, v);
           this.canvas.requestRenderAll();
         },
         onChange: (v) => {
-          applyBlurEffect(obj, currentBlurType, v);
+          applyBlurEffect(obj, type, v);
           this.canvas.requestRenderAll();
           this.app.historyManager.saveState();
           document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
         }
       });
-      blurContainer.appendChild(radiusControl);
+      subControls.appendChild(radiusControl);
 
-      if (currentBlurType === 'background') {
+      if (type === 'background') {
         const frostedBtn = document.createElement('button');
         frostedBtn.type = 'button';
         frostedBtn.className = 'btn-secondary';
@@ -1582,8 +1573,12 @@ export class PropertiesPanel {
         frostedBtn.style.cursor = 'pointer';
         frostedBtn.style.marginTop = '2px';
         frostedBtn.innerHTML = `<span>Apply Frosted Glass Style</span>`;
-        frostedBtn.onclick = () => this._applyFrostedGlass(obj);
-        blurContainer.appendChild(frostedBtn);
+        frostedBtn.onclick = (e) => {
+          e?.preventDefault();
+          e?.stopPropagation();
+          this._applyFrostedGlass(obj);
+        };
+        subControls.appendChild(frostedBtn);
 
         const normalizeBtn = document.createElement('button');
         normalizeBtn.type = 'button';
@@ -1603,7 +1598,9 @@ export class PropertiesPanel {
         normalizeBtn.style.cursor = 'pointer';
         normalizeBtn.style.marginTop = '4px';
         normalizeBtn.innerHTML = `<span>Normalize</span>`;
-        normalizeBtn.onclick = () => {
+        normalizeBtn.onclick = (e) => {
+          e?.preventDefault();
+          e?.stopPropagation();
           const defaultFill = FILL_DEFAULTS[obj.type] || '#7b46f8';
           obj.set({
             fill: defaultFill,
@@ -1611,14 +1608,34 @@ export class PropertiesPanel {
             strokeWidth: 0
           });
           applyBlurEffect(obj, 'none', 0);
+          blurTypeSeg.setValue('none');
+          renderSubControls('none');
           this.canvas.requestRenderAll();
           this.app.historyManager.saveState();
           document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
-          this.render();
         };
-        blurContainer.appendChild(normalizeBtn);
+        subControls.appendChild(normalizeBtn);
       }
-    }
+    };
+
+    const blurTypeSeg = segmented([
+      { value: 'none', label: 'None' },
+      { value: 'gaussian', label: 'Gaussian' },
+      { value: 'background', label: 'Background' }
+    ], {
+      value: currentBlurType,
+      onChange: (v) => {
+        const radius = (v === 'none') ? 0 : (obj._blurRadius || obj._blurValue || 16);
+        applyBlurEffect(obj, v, radius);
+        this.canvas.requestRenderAll();
+        this.app.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+        renderSubControls(v);
+      }
+    });
+    blurContainer.appendChild(blurTypeSeg);
+    renderSubControls(currentBlurType);
+    blurContainer.appendChild(subControls);
 
     body.appendChild(blurContainer);
     return this._section('Appearance', body);
@@ -1674,7 +1691,6 @@ export class PropertiesPanel {
     this.canvas.requestRenderAll();
     this.app.historyManager.saveState();
     document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
-    this.render();
   }
 
   /* ---------------- glow effect ---------------- */

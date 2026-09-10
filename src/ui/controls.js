@@ -620,9 +620,12 @@ export function segmented(options, { value = null, onChange, title = false } = {
       `seg-btn${opt.value === value ? ' active' : ''}`,
       opt.icon ? svg(opt.icon, 15) : (opt.label || '')
     );
+    btn.type = 'button';
+    btn.dataset.v = String(opt.value);
     if (title && opt.title) btn.title = opt.title;
     if (opt.label && !opt.icon) btn.textContent = opt.label;
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
       root.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       if (onChange) onChange(opt.value);
