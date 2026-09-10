@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - 2026-09-10
+
+### 🔤 Custom Font Upload & Brand Font Management
+- **Local Font Upload**: Upload `.ttf`, `.otf`, `.woff`, and `.woff2` font files directly from desktop or mobile.
+- **Offline & Session Persistence**: Custom fonts are persisted in browser storage and rehydrated across sessions.
+- **Dedicated Font Picker Section**: Displayed prominently under "Custom Brand Fonts" with live previews and deletion controls.
+
+### 📱 Mobile UI & iPhone Experience Overhaul
+- **Resolved iPhone Infinite Reload Bug**: Fixed mobile Safari reload loop by debouncing canvas resize listeners, guarding against address-bar pixel jitters, and configuring proper LAN HMR.
+- **Floating Mask Edit Bar on Mobile**: Fixed missing "Done" and "Cancel" buttons by elevating the bar above mobile bottom bars (`z-index: 9999`) with touch-friendly controls.
+- **Quick Mask Edit Button**: Added direct "Mask" button to the mobile quick actions bar when selecting clipped images/shapes.
+- **Theme & Pen Tool on Mobile**:
+  - Added dedicated **Theme** button to the mobile bottom navigation bar (`[ Slides | Add | Theme | Layers | Design ]`).
+  - Added **Pen Tool** and **Theme & Styles** to the mobile "Add to Slide" sheet and More dropdown.
+
+---
+
 ## [2.1.0] - 2026-09-10
 
 ### 🎨 Global Theme & Design System (Theme Manager)

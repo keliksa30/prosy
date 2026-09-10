@@ -49,6 +49,36 @@
   border: 1px solid rgba(255,255,255,.35); border-radius: 4px; padding: 0 4px;
 }
 
+@media (max-width: 768px) {
+  .mask-edit-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 72px; /* Floats clearly above the 56px mobile bottom bar */
+    transform: translateX(-50%);
+    z-index: 9999;
+    max-width: 94%;
+    width: max-content;
+    padding: 8px 12px;
+    background: var(--bg-surface);
+    border: 1.5px solid var(--accent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    gap: 8px;
+  }
+  .mask-edit-hint {
+    font-size: 11.5px;
+    max-width: 130px;
+  }
+  .mask-edit-btn {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 /* Drag-and-drop file import feedback */
 .canvas-viewport.drag-over-active {
   outline: 2px dashed var(--accent, #6366f1);

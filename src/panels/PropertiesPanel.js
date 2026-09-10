@@ -3,7 +3,10 @@ import { svg } from '../ui/icons.js';
 import {
   scrub, valueRow, slider, colorControl, section, iconBtn, segmented
 } from '../ui/controls.js';
-import { GOOGLE_FONTS, FONT_CATEGORIES, fontCategory, loadFont, preloadFontCatalog } from '../core/fonts.js';
+import {
+  GOOGLE_FONTS, FONT_CATEGORIES, CUSTOM_FONTS, uploadCustomFont, deleteCustomFont,
+  fontCategory, loadFont, preloadFontCatalog
+} from '../core/fonts.js';
 import { SHAPE_DEFS } from '../shapes/defs.js';
 
 const BG_PRESETS = [
@@ -692,13 +695,121 @@ export class PropertiesPanel {
     // search
     const search = document.createElement('input');
     search.className = 'font-search';
-    search.placeholder = 'Search 40+ Google fonts…';
+    search.placeholder = 'Search 40+ fonts…';
+
+    // upload button
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'panel-action-btn';
+    uploadBtn.style.width = '100%';
+    uploadBtn.style.margin = '6px 0';
+    uploadBtn.style.justifyContent = 'center';
+    uploadBtn.style.fontSize = '11.5px';
+    uploadBtn.style.fontWeight = '600';
+    uploadBtn.innerHTML = `${svg('Upload', 13)} <span>Upload Custom Font</span>`;
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.ttf,.otf,.woff,.woff2';
+    fileInput.style.display = 'none';
+
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const family = await uploadCustomFont(file);
+        this.app.toast?.(`Font "${family}" uploaded & active`);
+        targets.forEach(t => {
+          t.set('fontFamily', family);
+          t.dirty = true;
+          if (t.initDimensions) t.initDimensions();
+          if (t.setCoords) t.setCoords();
+        });
+        const activeSel = this.canvas.getActiveObject();
+        if (activeSel && activeSel.setCoords) activeSel.setCoords();
+        this.canvas.requestRenderAll();
+        this.app.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        renderList();
+        this.render();
+      } catch (err) {
+        alert(err.message || 'Font upload failed');
+      }
+    });
+
     const list = document.createElement('div');
     list.className = 'font-list';
 
     const renderList = () => {
       const q = search.value.trim().toLowerCase();
       list.innerHTML = '';
+
+      // 1. Custom uploaded fonts
+      const customMatches = CUSTOM_FONTS.filter(f => !q || f.family.toLowerCase().includes(q));
+      if (customMatches.length > 0) {
+        const catHead = document.createElement('div');
+        catHead.className = 'font-cat';
+        catHead.textContent = 'Custom Brand Fonts';
+        list.appendChild(catHead);
+
+        customMatches.forEach(f => {
+          const row = document.createElement('div');
+          const isCommon = targets.length > 0 && targets.every(t => t.fontFamily === f.family);
+          row.className = 'font-row' + (isCommon ? ' active' : '');
+          row.style.display = 'flex';
+          row.style.justifyContent = 'space-between';
+          row.style.alignItems = 'center';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.style.fontFamily = `'${f.family}', sans-serif`;
+          nameSpan.style.flex = '1';
+          nameSpan.textContent = f.family;
+
+          const badge = document.createElement('span');
+          badge.className = 'font-cat-badge';
+          badge.textContent = 'Custom';
+
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.title = 'Remove custom font';
+          delBtn.style.background = 'none';
+          delBtn.style.border = 'none';
+          delBtn.style.color = 'var(--text-muted)';
+          delBtn.style.cursor = 'pointer';
+          delBtn.style.padding = '2px 4px';
+          delBtn.innerHTML = svg('Trash2', 12);
+          delBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            deleteCustomFont(f.family);
+            renderList();
+          });
+
+          row.appendChild(nameSpan);
+          row.appendChild(badge);
+          row.appendChild(delBtn);
+
+          row.addEventListener('click', () => {
+            targets.forEach(t => {
+              t.set('fontFamily', f.family);
+              t.dirty = true;
+              if (t.initDimensions) t.initDimensions();
+              if (t.setCoords) t.setCoords();
+            });
+            const activeSel = this.canvas.getActiveObject();
+            if (activeSel && activeSel.setCoords) activeSel.setCoords();
+            this.canvas.requestRenderAll();
+            this.app.historyManager.saveState();
+            document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+            this._closeFontPicker();
+            this.render();
+          });
+
+          list.appendChild(row);
+        });
+      }
+
+      // 2. Google Fonts Catalog
       for (const cat of FONT_CATEGORIES) {
         const fams = GOOGLE_FONTS.filter(f => f.category === cat && (!q || f.family.toLowerCase().includes(q)));
         if (!fams.length) continue;
@@ -735,6 +846,8 @@ export class PropertiesPanel {
     renderList();
 
     pop.appendChild(search);
+    pop.appendChild(uploadBtn);
+    pop.appendChild(fileInput);
     pop.appendChild(list);
     btn.after(pop);
     this.fontPickerOpen = true;

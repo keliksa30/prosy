@@ -32,7 +32,9 @@ import { ContextMenu } from '../ui/ContextMenu.js';
 import { Modal } from '../ui/Modal.js';
 import { svg } from '../ui/icons.js';
 import { SHAPE_DEFS, SHAPE_LIST, createShape } from '../shapes/defs.js';
-import { GOOGLE_FONTS, FONT_CATEGORIES, loadFont } from './fonts.js';
+import {
+  GOOGLE_FONTS, FONT_CATEGORIES, CUSTOM_FONTS, uploadCustomFont, deleteCustomFont, loadFont
+} from './fonts.js';
 import * as fabric from 'fabric';
 
 const TOOL_KEYS = {
@@ -140,7 +142,14 @@ export class EditorApp {
   setupMaskEditBar() {
     const bar = document.getElementById('mask-edit-bar');
     if (!bar) return;
-    const show = (on) => { bar.style.display = on ? 'flex' : 'none'; };
+    const show = (on) => {
+      bar.style.display = on ? 'flex' : 'none';
+      const quickBar = document.getElementById('mobile-quick-actions');
+      if (quickBar) {
+        if (on) quickBar.style.display = 'none';
+        else if (this.canvasManager?.canvas?.getActiveObject()) quickBar.style.display = 'flex';
+      }
+    };
     document.getElementById('btn-mask-done').onclick = () => this.ops.finishMaskEdit();
     document.getElementById('btn-mask-cancel').onclick = () => this.ops.cancelMaskEdit();
     document.addEventListener('prosy:maskEditChanged', (e) => show(!!e.detail.editing));
@@ -341,6 +350,11 @@ export class EditorApp {
         <span>Add</span>
       </button>
 
+      <button class="mobile-bar-btn" id="mb-btn-theme">
+        ${svg('Palette', 18)}
+        <span>Theme</span>
+      </button>
+
       <button class="mobile-bar-btn" id="mb-btn-layers">
         ${svg('Layers', 18)}
         <span>Layers</span>
@@ -372,6 +386,8 @@ export class EditorApp {
       <button class="mobile-more-item" id="mmm-btn-open">${svg('FolderOpen', 16)} <span>Open .prs File</span></button>
       <button class="mobile-more-item" id="mmm-btn-templates">${svg('LayoutTemplate', 16)} <span>Templates</span></button>
       <button class="mobile-more-item" id="mmm-btn-present">${svg('Play', 16)} <span>Present Deck</span></button>
+      <button class="mobile-more-item" id="mmm-btn-theme">${svg('Palette', 16)} <span>Theme & Styles</span></button>
+      <button class="mobile-more-item" id="mmm-btn-about">${svg('Info', 16)} <span>About Prosy</span></button>
     </div>
 
     <div class="toast-stack" id="toast-stack"></div>
@@ -896,6 +912,14 @@ export class EditorApp {
         moreMenu.style.display = 'none';
         this.presentationMode.start();
       });
+      document.getElementById('mmm-btn-theme')?.addEventListener('click', () => {
+        moreMenu.style.display = 'none';
+        this.openMobileThemeSheet();
+      });
+      document.getElementById('mmm-btn-about')?.addEventListener('click', () => {
+        moreMenu.style.display = 'none';
+        this.showAbout();
+      });
     }
 
     // Sheet close & overlay dismiss
@@ -907,6 +931,7 @@ export class EditorApp {
     // Bottom Navigation buttons
     document.getElementById('mb-btn-pages')?.addEventListener('click', () => this.openMobilePagesSheet());
     document.getElementById('mb-btn-add')?.addEventListener('click', () => this.openMobileAddSheet());
+    document.getElementById('mb-btn-theme')?.addEventListener('click', () => this.openMobileThemeSheet());
     document.getElementById('mb-btn-layers')?.addEventListener('click', () => this.openMobileLayersSheet());
     document.getElementById('mb-btn-design')?.addEventListener('click', () => this.openMobilePropertiesSheet());
 
@@ -1050,6 +1075,15 @@ export class EditorApp {
         quickBar.appendChild(btnPhoto);
       }
 
+      if (active.clipPath) {
+        const btnEditMask = document.createElement('button');
+        btnEditMask.className = 'mobile-quick-btn';
+        btnEditMask.innerHTML = `${svg('Scissors', 14)} Mask`;
+        btnEditMask.title = 'Edit / Crop Photo in Mask';
+        btnEditMask.onclick = () => this.ops.editClipMask();
+        quickBar.appendChild(btnEditMask);
+      }
+
       const btnMinus = document.createElement('button');
       btnMinus.className = 'mobile-quick-btn';
       btnMinus.innerHTML = svg('Minus', 13);
@@ -1170,8 +1204,38 @@ export class EditorApp {
 
     const search = document.createElement('input');
     search.className = 'font-search';
-    search.placeholder = 'Search 40+ Google Fonts...';
+    search.placeholder = 'Search fonts...';
     search.style.cssText = 'width:100%;margin:0;padding:10px 14px;font-size:14px;box-sizing:border-box;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);outline:none;';
+
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'panel-action-btn';
+    uploadBtn.style.cssText = 'width:100%;justify-content:center;padding:10px;font-weight:600;font-size:13px;background:var(--bg-surface);border:1px solid var(--accent);color:var(--text-accent);border-radius:var(--radius-sm);cursor:pointer;';
+    uploadBtn.innerHTML = `${svg('Upload', 15)} <span>Upload Custom Font (.ttf, .otf, .woff)</span>`;
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.ttf,.otf,.woff,.woff2';
+    fileInput.style.display = 'none';
+
+    uploadBtn.onclick = () => fileInput.click();
+    fileInput.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const family = await uploadCustomFont(file);
+        this.toast(`Font "${family}" uploaded`);
+        textObj.set('fontFamily', family);
+        if (textObj.initDimensions) textObj.initDimensions();
+        if (textObj.setCoords) textObj.setCoords();
+        this.canvasManager.canvas.requestRenderAll();
+        this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        this.closeMobileSheet();
+      } catch (err) {
+        alert(err.message || 'Font upload failed');
+      }
+    };
 
     const list = document.createElement('div');
     list.style.cssText = 'max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:2px;-webkit-overflow-scrolling:touch;';
@@ -1179,6 +1243,59 @@ export class EditorApp {
     const renderFonts = (filter = '') => {
       list.innerHTML = '';
       const q = filter.trim().toLowerCase();
+
+      // Custom brand fonts
+      const customMatches = CUSTOM_FONTS.filter(f => !q || f.family.toLowerCase().includes(q));
+      if (customMatches.length > 0) {
+        const catHead = document.createElement('div');
+        catHead.className = 'font-cat';
+        catHead.textContent = 'Custom Brand Fonts';
+        catHead.style.cssText = 'font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);padding:8px 8px 3px;';
+        list.appendChild(catHead);
+
+        customMatches.forEach(f => {
+          const row = document.createElement('div');
+          row.className = 'font-row' + (textObj.fontFamily === f.family ? ' active' : '');
+          row.style.cssText = 'padding:11px 12px;font-size:15px;display:flex;justify-content:space-between;align-items:center;background:transparent;border:none;border-radius:var(--radius-sm);color:var(--text-primary);cursor:pointer;width:100%;text-align:left;';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.style.fontFamily = `'${f.family}', sans-serif`;
+          nameSpan.style.flex = '1';
+          nameSpan.textContent = f.family;
+
+          const badge = document.createElement('span');
+          badge.style.cssText = 'font-size:9px;color:var(--text-accent);margin-right:8px;';
+          badge.textContent = 'Custom';
+
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.style.cssText = 'background:none;border:none;color:var(--text-muted);padding:4px;cursor:pointer;';
+          delBtn.innerHTML = svg('Trash2', 14);
+          delBtn.onclick = (ev) => {
+            ev.stopPropagation();
+            deleteCustomFont(f.family);
+            renderFonts(search.value);
+          };
+
+          row.appendChild(nameSpan);
+          row.appendChild(badge);
+          row.appendChild(delBtn);
+
+          row.onclick = () => {
+            textObj.set('fontFamily', f.family);
+            if (textObj.initDimensions) textObj.initDimensions();
+            if (textObj.setCoords) textObj.setCoords();
+            this.canvasManager.canvas.requestRenderAll();
+            this.historyManager.saveState();
+            document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+            this.closeMobileSheet();
+          };
+
+          list.appendChild(row);
+        });
+      }
+
+      // Google Fonts
       for (const cat of FONT_CATEGORIES) {
         const fams = GOOGLE_FONTS.filter(f => f.category === cat && (!q || f.family.toLowerCase().includes(q)));
         if (!fams.length) continue;
@@ -1215,6 +1332,8 @@ export class EditorApp {
     renderFonts();
 
     container.appendChild(search);
+    container.appendChild(uploadBtn);
+    container.appendChild(fileInput);
     container.appendChild(list);
 
     this.openMobileSheet('Choose Font', container);
@@ -1672,6 +1791,24 @@ export class EditorApp {
           this.closeMobileSheet();
           this.templateChooser.show({ mode: 'pack' });
         }
+      },
+      {
+        icon: svg('PenTool', 20),
+        title: 'Pen Tool',
+        desc: 'Draw custom vector paths & bezier curves',
+        action: () => {
+          this.closeMobileSheet();
+          this.toolManager.setTool('pen');
+          this.toast('Pen Tool active — tap and drag to draw curves');
+        }
+      },
+      {
+        icon: svg('Palette', 20),
+        title: 'Theme & Styles',
+        desc: 'Global color palettes & tokens',
+        action: () => {
+          this.openMobileThemeSheet();
+        }
       }
     ];
 
@@ -1688,6 +1825,16 @@ export class EditorApp {
     });
 
     this.openMobileSheet('Add to Slide', container);
+  }
+
+  openMobileThemeSheet() {
+    this._activeMobilePanel = 'theme';
+    const contentEl = document.getElementById('mobile-sheet-content');
+    if (contentEl && this.panels.theme) {
+      contentEl.innerHTML = '';
+      this.panels.theme.mount(contentEl);
+    }
+    this.openMobileSheet('Theme & Styles', contentEl);
   }
 
   openMobileShapesSubSheet() {

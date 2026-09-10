@@ -47,7 +47,94 @@ export const GOOGLE_FONTS = (() => {
   return all;
 })();
 
+export const CUSTOM_FONTS = [];
+
+export function loadCustomFontsFromStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem('prosy.custom_fonts.v1');
+    if (!raw) return;
+    const list = JSON.parse(raw);
+    if (Array.isArray(list)) {
+      list.forEach(async (item) => {
+        try {
+          if (!item.family || !item.dataUrl) return;
+          const fontFace = new FontFace(item.family, `url(${item.dataUrl})`);
+          await fontFace.load();
+          document.fonts.add(fontFace);
+          loadedFamilies.add(item.family);
+          if (!CUSTOM_FONTS.some(f => f.family === item.family)) {
+            CUSTOM_FONTS.push({ family: item.family, category: 'Custom', custom: true });
+          }
+        } catch (err) {
+          console.warn('Failed to load saved custom font', item.family, err);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Error reading custom fonts from storage', e);
+  }
+}
+
+export async function uploadCustomFont(file) {
+  if (!file) throw new Error('No file provided');
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['ttf', 'otf', 'woff', 'woff2'].includes(ext)) {
+    throw new Error('Unsupported font format. Use .ttf, .otf, .woff, or .woff2');
+  }
+
+  const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').trim();
+  const familyName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+
+  const buffer = await file.arrayBuffer();
+  const fontFace = new FontFace(familyName, buffer);
+  await fontFace.load();
+  document.fonts.add(fontFace);
+  loadedFamilies.add(familyName);
+
+  const reader = new FileReader();
+  const dataUrl = await new Promise((resolve, reject) => {
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  try {
+    const raw = localStorage.getItem('prosy.custom_fonts.v1');
+    const list = raw ? JSON.parse(raw) : [];
+    const updated = list.filter(f => f.family !== familyName);
+    updated.push({ family: familyName, dataUrl, format: ext });
+    localStorage.setItem('prosy.custom_fonts.v1', JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Storage quota exceeded when saving font', e);
+  }
+
+  if (!CUSTOM_FONTS.some(f => f.family === familyName)) {
+    CUSTOM_FONTS.unshift({ family: familyName, category: 'Custom', custom: true });
+  }
+
+  return familyName;
+}
+
+export function deleteCustomFont(familyName) {
+  const idx = CUSTOM_FONTS.findIndex(f => f.family === familyName);
+  if (idx >= 0) CUSTOM_FONTS.splice(idx, 1);
+  try {
+    const raw = localStorage.getItem('prosy.custom_fonts.v1');
+    if (raw) {
+      const list = JSON.parse(raw).filter(f => f.family !== familyName);
+      localStorage.setItem('prosy.custom_fonts.v1', JSON.stringify(list));
+    }
+  } catch (e) {}
+}
+
+export function getAllFonts() {
+  return [...CUSTOM_FONTS, ...GOOGLE_FONTS];
+}
+
 export function fontCategory(family) {
+  const custom = CUSTOM_FONTS.find(x => x.family === family);
+  if (custom) return 'Custom';
   const f = GOOGLE_FONTS.find(x => x.family === family);
   return f ? f.category : 'Sans Serif';
 }
@@ -79,8 +166,9 @@ export function preloadFontCatalog() {
   });
 }
 
-// Kick off catalog font definition preloading in browser environment
+// Kick off catalog font definition preloading & custom font restore
 if (typeof window !== 'undefined') {
+  loadCustomFontsFromStorage();
   if ('requestIdleCallback' in window) {
     window.requestIdleCallback(() => preloadFontCatalog(), { timeout: 1200 });
   } else {

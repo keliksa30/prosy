@@ -14,8 +14,8 @@ Untuk memperluas audiens dari portofolio personal ke B2B dan profesional industr
 Fitur-fitur teknis yang akan meningkatkan *Quality of Life* (QoL) pengguna profesional:
 
 *   **Smart Guides & Snapping Tingkat Lanjut**: Menambahkan garis bantu otomatis (warna merah muda/biru) yang muncul saat elemen sejajar atau memiliki jarak yang sama (*smart spacing*). Sangat krusial untuk *pixel-perfect design*.
-*   **Global Design System (Theme Manager)**: Fitur untuk mengatur palet warna global (*primary, secondary, background*). Mengubah satu warna di Theme Manager akan otomatis memperbarui seluruh bentuk/teks yang menggunakan warna tersebut di semua halaman.
-*   **Custom Font Upload**: Mendukung pengunggahan *font* lokal (`.otf`, `.ttf`, atau `.woff2`). Profesional sering kali diwajibkan menggunakan *font* spesifik milik *brand* mereka.
+*   **Global Design System (Theme Manager)** `[SELESAI v2.1.0]`: Fitur untuk mengatur palet warna global (*primary, secondary, background*). Mengubah satu warna di Theme Manager akan otomatis memperbarui seluruh bentuk/teks yang menggunakan warna tersebut di semua halaman.
+*   **Custom Font Upload** `[SELESAI v2.2.0]`: Mendukung pengunggahan *font* lokal (`.otf`, `.ttf`, `.woff`, atau `.woff2`). Profesional sering kali diwajibkan menggunakan *font* spesifik milik *brand* mereka. Tersedia di Desktop & Mobile.
 *   **Export PDF Interaktif**: Peningkatan sistem *export*. Mengganti *export* PDF berbasis *raster* (gambar) menjadi PDF berbasis vektor, sehingga teks dapat disalin (*copyable*) dan URL dapat diklik (*clickable*).
 *   **Code Snippet Block**: Menambahkan dukungan *syntax highlighting* untuk teks blok kode, khusus menargetkan *developer* yang membuat portofolio teknikal.
 

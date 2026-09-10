@@ -116,7 +116,22 @@ export class CanvasManager {
     this.smartGuides = new SmartGuides(this);
     this.pathEditMode = new PathEditMode(this);
 
-    window.addEventListener('resize', () => this.fitToScreen(true));
+    let resizeTimer = null;
+    let lastW = typeof window !== 'undefined' ? window.innerWidth : 0;
+    let lastH = typeof window !== 'undefined' ? window.innerHeight : 0;
+
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const curW = typeof window !== 'undefined' ? window.innerWidth : 0;
+        const curH = typeof window !== 'undefined' ? window.innerHeight : 0;
+        if (Math.abs(curW - lastW) > 12 || Math.abs(curH - lastH) > 40) {
+          lastW = curW;
+          lastH = curH;
+          this.fitToScreen(true);
+        }
+      }, 150);
+    });
     return this.canvas;
   }
 
@@ -383,12 +398,6 @@ export class CanvasManager {
       }
     });
 
-    // Auto-fit on mobile orientation change
-    window.addEventListener('resize', () => {
-      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-        this.fitToScreen();
-      }
-    });
 
     // Clicking the gray workspace around the page deselects everything.
     viewport.addEventListener('mousedown', (e) => {
