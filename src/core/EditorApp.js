@@ -1959,7 +1959,7 @@ export class EditorApp {
           <div>
             <div style="display:flex;align-items:center;gap:8px;">
               <h3 style="margin:0;font-size:18px;font-weight:700;color:var(--text-primary);font-family:var(--font-headline);">Prosy</h3>
-              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.3.0</span>
+              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.3.1</span>
             </div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Modern Page-Based Visual Designer for Portfolios & Pitch Decks</div>
           </div>

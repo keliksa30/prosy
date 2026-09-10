@@ -39,7 +39,12 @@ export class PropertiesPanel {
       if (!isMobileHost && !this.host.offsetParent) return; // visible tab only on desktop
       this._throttledRender();
     };
-    this._onObjectEdited = () => this._throttledRender();
+    this._onObjectEdited = (e) => {
+      // If the edit came from this panel's own slider / direct input,
+      // skip rebuilding the DOM so slider focus, dragging, and layout don't flicker
+      if (e?.detail?.source === 'properties') return;
+      this._throttledRender();
+    };
     this._onBg = () => { if (!this.canvas.getActiveObjects().length) this._throttledRender(); };
 
     this.canvas.on('selection:created', this.handleSelection);
@@ -48,6 +53,33 @@ export class PropertiesPanel {
     document.addEventListener('prosy:objectEdited', this._onObjectEdited);
     document.addEventListener('prosy:canvasBgChanged', this._onBg);
     document.addEventListener('prosy:pageSwitched', () => this._throttledRender());
+  }
+
+  _getScrollInfo() {
+    if (!this.host) return { host: 0, inner: 0 };
+    const inner = this.host.querySelector('.panel-scroll');
+    return {
+      host: this.host.scrollTop || 0,
+      inner: inner ? inner.scrollTop : 0
+    };
+  }
+
+  _restoreScrollInfo(info) {
+    if (!this.host || !info) return;
+    const apply = () => {
+      if (info.host > 0 && this.host) this.host.scrollTop = info.host;
+      const inner = this.host?.querySelector('.panel-scroll');
+      if (info.inner > 0 && inner) inner.scrollTop = info.inner;
+    };
+    apply();
+    requestAnimationFrame(apply);
+  }
+
+  _getTargetKey() {
+    const single = this.single;
+    if (single) return single.id || single;
+    if (this.activeObjs.length > 1) return 'multi';
+    return 'page';
   }
 
   _throttledRender() {
@@ -77,12 +109,24 @@ export class PropertiesPanel {
 
   render() {
     if (!this.host) return;
+
+    // Capture current scroll positions before DOM re-creation
+    const scrollInfo = this._getScrollInfo();
+    const targetKey = this._getTargetKey();
+    const isSameTarget = this._lastTargetKey === targetKey;
+    this._lastTargetKey = targetKey;
+
     const single = this.single;
     if (!single) {
       if (this.activeObjs.length > 1) this.renderMulti();
       else this.renderPageSettings();
     } else {
       this.renderObject(single);
+    }
+
+    // Seamlessly restore scroll position if inspecting the same element/page
+    if (isSameTarget) {
+      this._restoreScrollInfo(scrollInfo);
     }
   }
 
@@ -93,7 +137,7 @@ export class PropertiesPanel {
     if (obj.setCoords) obj.setCoords();
     this.canvas.requestRenderAll();
     if (history) this.app.historyManager.saveState();
-    document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
   }
 
   _row(label, control) {
@@ -1354,7 +1398,11 @@ export class PropertiesPanel {
       label: 'Opacity',
       value: Math.round((obj.opacity ?? 1) * 100), min: 5, max: 100, step: 1, format: (v) => `${v}%`,
       onInput: (v) => { obj.set('opacity', v / 100); this.canvas.requestRenderAll(); },
-      onChange: (v) => { obj.set('opacity', v / 100); this.app.historyManager.saveState(); document.dispatchEvent(new CustomEvent('prosy:objectEdited')); }
+      onChange: (v) => {
+        obj.set('opacity', v / 100);
+        this.app.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
+      }
     });
     body.appendChild(op);
 
@@ -1392,7 +1440,7 @@ export class PropertiesPanel {
       },
       onChange: () => {
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } }));
       }
     });
     body.appendChild(blurControl);

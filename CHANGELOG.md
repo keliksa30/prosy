@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.1] - 2026-09-10
+
+### 🐛 Properties Panel Scroll Stability Fix
+- **Fixed Scroll Reset on Slider Adjustments**: Resolved an annoying bug where adjusting the Blur slider, Opacity slider, or Shadow properties caused the Properties Panel to abruptly jump/scroll to the top.
+- **Persistent Scroll Retention**: Implemented automatic scroll position tracking (`_getScrollInfo` & `_restoreScrollInfo`) across re-renders for both desktop (`.panel-scroll`) and mobile bottom sheet (`#mobile-sheet-content`).
+- **Targeted Event Filtering**: Avoided unnecessary DOM rebuilding when edits originate internally from PropertiesPanel controls (`source: 'properties'`), eliminating flicker and preserving active control focus.
+
+---
+
 ## [2.3.0] - 2026-09-10
 
 ### 📐 Smart Guides & Gap Snapping Tingkat Lanjut (Figma-Style)
