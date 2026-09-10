@@ -38,7 +38,11 @@ export class TemplateManager {
         import('./data/pack-codedark.js'),
         import('./data/pack-editorial.js'),
         import('./data/pack-chroma.js'),
-        import('./data/pack-executive.js')
+        import('./data/pack-executive.js'),
+        import('./data/pack-startup-pitch.js'),
+        import('./data/pack-agency-portfolio.js'),
+        import('./data/pack-product-launch.js'),
+        import('./data/pack-academic-paper.js')
       ]);
       this.packs = mods.map(m => m.default || Object.values(m).find(v => v && v.id && v.pages));
       this.packs = this.packs.filter(Boolean);

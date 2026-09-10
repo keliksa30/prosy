@@ -8,6 +8,9 @@ import {
   fontCategory, loadFont, preloadFontCatalog
 } from '../core/fonts.js';
 import { SHAPE_DEFS } from '../shapes/defs.js';
+import { createCodeSnippetGroup, CODE_LANGUAGES, CODE_THEMES } from '../tools/CodeSnippetBlock.js';
+import { QRCodeGenerator } from '../tools/QRCodeGenerator.js';
+import { Modal } from '../ui/Modal.js';
 
 const BG_PRESETS = [
   ['#ffffff', 'White'], ['#f7f6f3', 'Paper'], ['#0f172a', 'Ink'], ['#18181b', 'Charcoal'],
@@ -260,6 +263,12 @@ export class PropertiesPanel {
     }
     if (obj.clipPath) {
       scroll.appendChild(this._unmaskSection(obj));
+    }
+    if (obj.isCodeSnippet) {
+      scroll.appendChild(this._codeSnippetSection(obj));
+    }
+    if (obj.isQRCode) {
+      scroll.appendChild(this._qrCodeSection(obj));
     }
     scroll.appendChild(this._hyperlinkSection(obj));
     scroll.appendChild(this._appearanceSection(obj));
@@ -1337,13 +1346,265 @@ export class PropertiesPanel {
 
   _appearanceSection(obj) {
     const body = document.createElement('div');
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '10px';
+
     const op = slider({
+      label: 'Opacity',
       value: Math.round((obj.opacity ?? 1) * 100), min: 5, max: 100, step: 1, format: (v) => `${v}%`,
       onInput: (v) => { obj.set('opacity', v / 100); this.canvas.requestRenderAll(); },
       onChange: (v) => { obj.set('opacity', v / 100); this.app.historyManager.saveState(); document.dispatchEvent(new CustomEvent('prosy:objectEdited')); }
     });
     body.appendChild(op);
-    return this._section('Opacity', body);
+
+    // Efek Blur (Gaussian Blur & Soft Edge)
+    const currentBlur = obj._blurValue ?? 0;
+    const blurControl = slider({
+      label: 'Blur',
+      value: currentBlur, min: 0, max: 40, step: 1, format: (v) => `${v}px`,
+      onInput: (v) => {
+        obj._blurValue = v;
+        if (obj.isType && obj.isType('image')) {
+          if (!obj.filters) obj.filters = [];
+          const idx = obj.filters.findIndex(f => f && f.type === 'Blur');
+          if (v > 0) {
+            const blurFilter = new fabric.filters.Blur({ blur: v / 40 });
+            if (idx >= 0) obj.filters[idx] = blurFilter;
+            else obj.filters.push(blurFilter);
+          } else if (idx >= 0) {
+            obj.filters.splice(idx, 1);
+          }
+          obj.applyFilters();
+        } else {
+          if (v > 0) {
+            obj.set('shadow', new fabric.Shadow({
+              color: 'rgba(0,0,0,0.5)',
+              blur: v * 1.5,
+              offsetX: 0,
+              offsetY: 0
+            }));
+          } else {
+            obj.set('shadow', null);
+          }
+        }
+        this.canvas.requestRenderAll();
+      },
+      onChange: () => {
+        this.app.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      }
+    });
+    body.appendChild(blurControl);
+
+    return this._section('Appearance', body);
+  }
+
+  /* ---------------- code snippet section ---------------- */
+
+  _codeSnippetSection(obj) {
+    const body = document.createElement('div');
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '10px';
+
+    const data = obj.codeData || {
+      code: 'console.log("Hello, World!");',
+      lang: 'javascript',
+      theme: 'one-dark',
+      showLineNumbers: true,
+      width: obj.width || 560
+    };
+
+    // Language Selector
+    const langRow = document.createElement('div');
+    langRow.className = 'inline-row';
+    const langLabel = document.createElement('span');
+    langLabel.className = 'val-label';
+    langLabel.textContent = 'Language';
+    const langSelect = document.createElement('select');
+    langSelect.style.cssText = 'flex:1;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:6px;padding:5px 8px;color:var(--text-primary);font-size:12px;outline:none;';
+    CODE_LANGUAGES.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.id;
+      opt.textContent = l.name;
+      if (l.id === data.lang) opt.selected = true;
+      langSelect.appendChild(opt);
+    });
+    langSelect.addEventListener('change', () => {
+      data.lang = langSelect.value;
+      this._updateCodeSnippet(obj, data);
+    });
+    langRow.appendChild(langLabel);
+    langRow.appendChild(langSelect);
+    body.appendChild(langRow);
+
+    // Theme Selector
+    const themeRow = document.createElement('div');
+    themeRow.className = 'inline-row';
+    const themeLabel = document.createElement('span');
+    themeLabel.className = 'val-label';
+    themeLabel.textContent = 'Theme';
+    const themeSelect = document.createElement('select');
+    themeSelect.style.cssText = 'flex:1;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:6px;padding:5px 8px;color:var(--text-primary);font-size:12px;outline:none;';
+    Object.entries(CODE_THEMES).forEach(([id, tObj]) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = tObj.name;
+      if (id === data.theme) opt.selected = true;
+      themeSelect.appendChild(opt);
+    });
+    themeSelect.addEventListener('change', () => {
+      data.theme = themeSelect.value;
+      this._updateCodeSnippet(obj, data);
+    });
+    themeRow.appendChild(themeLabel);
+    themeRow.appendChild(themeSelect);
+    body.appendChild(themeRow);
+
+    // Line Numbers Toggle
+    const lineRow = document.createElement('div');
+    lineRow.className = 'inline-row';
+    lineRow.style.justifyContent = 'space-between';
+    const lineLabel = document.createElement('span');
+    lineLabel.className = 'val-label';
+    lineLabel.textContent = 'Line numbers';
+    const lineCheckbox = document.createElement('input');
+    lineCheckbox.type = 'checkbox';
+    lineCheckbox.checked = data.showLineNumbers !== false;
+    lineCheckbox.addEventListener('change', () => {
+      data.showLineNumbers = lineCheckbox.checked;
+      this._updateCodeSnippet(obj, data);
+    });
+    lineRow.appendChild(lineLabel);
+    lineRow.appendChild(lineCheckbox);
+    body.appendChild(lineRow);
+
+    // Edit Code Button
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-secondary';
+    editBtn.style.width = '100%';
+    editBtn.style.justifyContent = 'center';
+    editBtn.innerHTML = svg('Code', 13) + ' Edit Code Text…';
+    editBtn.addEventListener('click', () => {
+      this._openCodeEditorModal(obj, data);
+    });
+    body.appendChild(editBtn);
+
+    return this._section('Code Snippet', body);
+  }
+
+  _updateCodeSnippet(oldGroup, data) {
+    const left = oldGroup.left;
+    const top = oldGroup.top;
+    const newGroup = createCodeSnippetGroup({
+      code: data.code,
+      lang: data.lang,
+      theme: data.theme,
+      showLineNumbers: data.showLineNumbers,
+      left,
+      top,
+      width: data.width || 560
+    });
+
+    this.canvas.remove(oldGroup);
+    this.canvas.add(newGroup);
+    this.canvas.setActiveObject(newGroup);
+    this.canvas.requestRenderAll();
+    this.app.historyManager.saveState();
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+    this.render();
+  }
+
+  _openCodeEditorModal(obj, data) {
+    const modalId = 'code-editor-modal';
+    const html = `
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="font-size:12px;color:var(--text-muted);">Paste or type your code below. Line breaks and indentation are preserved.</div>
+        <textarea id="code-modal-textarea" rows="12" style="width:100%;box-sizing:border-box;background:#181a1f;color:#abb2bf;border:1px solid var(--border-color);border-radius:8px;padding:12px;font-family:'JetBrains Mono', 'Fira Code', monospace;font-size:13px;line-height:1.5;outline:none;resize:vertical;"></textarea>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button class="btn btn-ghost" id="code-modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="code-modal-save" style="font-weight:600;">Save Code</button>
+        </div>
+      </div>
+    `;
+
+    const m = new Modal(modalId, 'Edit Code Snippet', html);
+    m.render();
+    m.open();
+
+    const textarea = document.getElementById('code-modal-textarea');
+    if (textarea) {
+      textarea.value = data.code || '';
+      textarea.focus();
+    }
+
+    document.getElementById('code-modal-cancel')?.addEventListener('click', () => m.close());
+    document.getElementById('code-modal-save')?.addEventListener('click', () => {
+      if (textarea) {
+        data.code = textarea.value;
+        this._updateCodeSnippet(obj, data);
+      }
+      m.close();
+    });
+  }
+
+  /* ---------------- qr code section ---------------- */
+
+  _qrCodeSection(obj) {
+    const body = document.createElement('div');
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '10px';
+
+    const data = obj.qrData || {
+      text: obj.custom?.hyperlink || 'https://',
+      color: '#000000',
+      background: '#ffffff',
+      size: 200
+    };
+
+    const inputRow = document.createElement('div');
+    inputRow.style.display = 'flex';
+    inputRow.style.flexDirection = 'column';
+    inputRow.style.gap = '4px';
+    const label = document.createElement('span');
+    label.className = 'val-label';
+    label.textContent = 'QR Code Link / Text';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = data.text;
+    input.style.cssText = 'width:100%;box-sizing:border-box;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--text-primary);font-family:var(--font-mono, monospace);outline:none;';
+    input.addEventListener('keydown', (e) => e.stopPropagation());
+    inputRow.appendChild(label);
+    inputRow.appendChild(input);
+    body.appendChild(inputRow);
+
+    const updateBtn = document.createElement('button');
+    updateBtn.className = 'btn btn-primary';
+    updateBtn.style.width = '100%';
+    updateBtn.style.justifyContent = 'center';
+    updateBtn.innerHTML = svg('QrCode', 13) + ' Update QR Code';
+    updateBtn.addEventListener('click', async () => {
+      const newText = input.value.trim();
+      if (!newText) return;
+      data.text = newText;
+      const dataUrl = QRCodeGenerator.generateDataURL(newText, {
+        size: data.size || 200,
+        color: data.color || '#000000',
+        background: data.background || '#ffffff'
+      });
+      await obj.setSrc(dataUrl);
+      obj.qrData = data;
+      obj.custom = obj.custom || {};
+      obj.custom.hyperlink = newText;
+      this.canvas.requestRenderAll();
+      this.app.historyManager.saveState();
+      this.app.toast?.('QR Code updated');
+    });
+    body.appendChild(updateBtn);
+
+    return this._section('QR Code', body);
   }
 
   /* ---------------- hyperlink section ---------------- */

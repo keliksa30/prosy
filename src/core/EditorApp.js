@@ -35,6 +35,7 @@ import { SHAPE_DEFS, SHAPE_LIST, createShape } from '../shapes/defs.js';
 import {
   GOOGLE_FONTS, FONT_CATEGORIES, CUSTOM_FONTS, uploadCustomFont, deleteCustomFont, loadFont
 } from './fonts.js';
+import { QRCodeGenerator } from '../tools/QRCodeGenerator.js';
 import * as fabric from 'fabric';
 
 const TOOL_KEYS = {
@@ -1803,6 +1804,24 @@ export class EditorApp {
         }
       },
       {
+        icon: svg('QrCode', 20),
+        title: 'QR Code',
+        desc: 'Generate QR code from URL or text',
+        action: () => {
+          this.closeMobileSheet();
+          this.showQRCodeDialog();
+        }
+      },
+      {
+        icon: svg('Code', 20),
+        title: 'Code Snippet',
+        desc: 'macOS terminal code block with syntax highlight',
+        action: () => {
+          this.closeMobileSheet();
+          this.panels.elements.insertCodeSnippet();
+        }
+      },
+      {
         icon: svg('Palette', 20),
         title: 'Theme & Styles',
         desc: 'Global color palettes & tokens',
@@ -1940,7 +1959,7 @@ export class EditorApp {
           <div>
             <div style="display:flex;align-items:center;gap:8px;">
               <h3 style="margin:0;font-size:18px;font-weight:700;color:var(--text-primary);font-family:var(--font-headline);">Prosy</h3>
-              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.1.0</span>
+              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.3.0</span>
             </div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Modern Page-Based Visual Designer for Portfolios & Pitch Decks</div>
           </div>
@@ -1950,20 +1969,24 @@ export class EditorApp {
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">✨ Highlight Features</div>
           <div style="display:flex;flex-direction:column;gap:8px;">
             <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
-              <strong style="color:var(--text-primary);font-size:12.5px;">🎨 Global Theme & Design System</strong>
-              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Curated color palettes (Neo Studio, Emerald Luxury, etc.), real-time token synchronization across all slides, smart restyling ("Apply to Page"), and palette shuffling.</div>
+              <strong style="color:var(--text-primary);font-size:12.5px;">📐 Smart Guides & Equal Spacing (Figma-Style)</strong>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Pixel-perfect multi-alignment snapping and equidistant gap snapping with distance pill badges.</div>
             </div>
             <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
-              <strong style="color:var(--text-primary);font-size:12.5px;">✒️ Figma-Style Bezier Pen Tool & Vector Edit</strong>
-              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Draw smooth vector paths with click-drag tangent handles, live cubic bezier curve previews, loop snap closure, and direct vector node editing.</div>
+              <strong style="color:var(--text-primary);font-size:12.5px;">📄 Interactive Vector PDF & Clickable Links</strong>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Export with selectable, searchable, copy-pasteable text layers and clickable hyperlinks.</div>
             </div>
             <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
-              <strong style="color:var(--text-primary);font-size:12.5px;">🧩 SVG Upload with Live Color Editing</strong>
-              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Upload custom vector illustrations and icons with dynamic color swatch controls in the Properties Panel.</div>
+              <strong style="color:var(--text-primary);font-size:12.5px;">📱 QR Code Generator & Code Snippet Blocks</strong>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Pure JS vector QR code generation from links and macOS terminal code cards with syntax highlighting.</div>
+            </div>
+            <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
+              <strong style="color:var(--text-primary);font-size:12.5px;">🎨 Global Design System & Bezier Pen Tool</strong>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Curated color palettes with instant multi-slide syncing and Figma-style vector path drawing.</div>
             </div>
             <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
               <strong style="color:var(--text-primary);font-size:12.5px;">📄 100% Native Editable PPTX Export</strong>
-              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Decompose canvas layouts into genuine PowerPoint shapes and textboxes that you can re-type and customize in Keynote, PowerPoint, or Google Slides.</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Decompose canvas layouts into genuine PowerPoint shapes and textboxes for Keynote and PowerPoint.</div>
             </div>
           </div>
         </div>
@@ -1977,6 +2000,136 @@ export class EditorApp {
     const m = new Modal('about-modal', 'About Prosy', html);
     m.render();
     m.open();
+  }
+
+  showQRCodeDialog(initialUrl = '') {
+    const modalId = 'qr-code-dialog';
+    const activePrimary = this.themeManager ? this.themeManager.getToken('primary') : '#007AFF';
+    let currentColor = '#000000';
+    let currentBg = '#ffffff';
+
+    const html = `
+      <div style="display:flex;flex-direction:column;gap:16px;max-width:420px;margin:0 auto;">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text-secondary);">Target URL or Text</label>
+          <input type="text" id="qr-modal-url" placeholder="https://myportfolio.com" value="${escapeHtml(initialUrl || 'https://')}"
+            style="width:100%;box-sizing:border-box;background:var(--bg-surface);border:1.5px solid var(--border-color);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--text-primary);outline:none;font-family:var(--font-mono, monospace);">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;margin-bottom:6px;color:var(--text-secondary);">QR Color</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="color" id="qr-modal-color" value="${currentColor}" style="width:36px;height:36px;border:none;border-radius:6px;cursor:pointer;background:none;">
+              <button class="btn btn-ghost" id="qr-modal-theme-color" style="font-size:11px;padding:6px 10px;">✦ Theme</button>
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;margin-bottom:6px;color:var(--text-secondary);">Background</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="color" id="qr-modal-bg" value="${currentBg}" style="width:36px;height:36px;border:none;border-radius:6px;cursor:pointer;background:none;">
+              <button class="btn btn-ghost" id="qr-modal-bg-transparent" style="font-size:11px;padding:6px 10px;">None</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:center;align-items:center;padding:16px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;">
+          <div id="qr-modal-preview" style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;"></div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+          <button class="btn btn-ghost" id="qr-modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="qr-modal-insert" style="font-weight:600;">
+            ${svg('QrCode', 14)} Insert to Slide
+          </button>
+        </div>
+      </div>
+    `;
+
+    const m = new Modal(modalId, '✦ QR Code Generator', html);
+    m.render();
+    m.open();
+
+    const inputUrl = document.getElementById('qr-modal-url');
+    const inputColor = document.getElementById('qr-modal-color');
+    const inputBg = document.getElementById('qr-modal-bg');
+    const previewEl = document.getElementById('qr-modal-preview');
+
+    const updatePreview = () => {
+      const val = inputUrl ? inputUrl.value.trim() || 'https://prosy.design' : 'https://prosy.design';
+      const svgCode = QRCodeGenerator.generateSVG(val, {
+        size: 180,
+        color: currentColor,
+        background: currentBg
+      });
+      if (previewEl) previewEl.innerHTML = svgCode;
+    };
+
+    if (inputUrl) inputUrl.addEventListener('input', updatePreview);
+    if (inputColor) inputColor.addEventListener('input', (e) => {
+      currentColor = e.target.value;
+      updatePreview();
+    });
+    if (inputBg) inputBg.addEventListener('input', (e) => {
+      currentBg = e.target.value;
+      updatePreview();
+    });
+
+    document.getElementById('qr-modal-theme-color')?.addEventListener('click', () => {
+      currentColor = activePrimary;
+      if (inputColor) inputColor.value = activePrimary;
+      updatePreview();
+    });
+
+    document.getElementById('qr-modal-bg-transparent')?.addEventListener('click', () => {
+      currentBg = 'transparent';
+      updatePreview();
+    });
+
+    updatePreview();
+
+    const cancelBtn = document.getElementById('qr-modal-cancel');
+    if (cancelBtn) cancelBtn.onclick = () => m.close();
+    const insertBtn = document.getElementById('qr-modal-insert');
+    if (insertBtn) insertBtn.onclick = async () => {
+      const text = inputUrl ? inputUrl.value.trim() : '';
+      if (!text) {
+        this.toast('Please enter a URL or text');
+        return;
+      }
+      try {
+        const vp = this.canvasManager.getViewport();
+        const pan = this.canvas.viewportTransform;
+        const zoom = this.canvasManager.getZoom();
+        const size = 200;
+
+        let left = 200;
+        let top = 200;
+        if (vp && pan) {
+          left = (-pan[4] + vp.offsetWidth / 2) / zoom - size / 2;
+          top = (-pan[5] + vp.offsetHeight / 2) / zoom - size / 2;
+        }
+
+        const qrImg = await QRCodeGenerator.createFabricQR(text, {
+          size,
+          color: currentColor,
+          background: currentBg,
+          left: Math.round(left),
+          top: Math.round(top)
+        });
+
+        this.canvas.add(qrImg);
+        this.canvas.setActiveObject(qrImg);
+        this.canvas.requestRenderAll();
+        if (this.historyManager) this.historyManager.saveState();
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        this.toast('QR Code added to slide');
+        m.close();
+      } catch (err) {
+        console.error('Failed to create QR Code', err);
+        this.toast('Failed to generate QR Code', true);
+      }
+    };
   }
 }
 

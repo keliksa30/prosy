@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] - 2026-09-10
+
+### 📐 Smart Guides & Gap Snapping Tingkat Lanjut (Figma-Style)
+- **Multi-Alignment Snapping**: Dynamic red alignment guides for edge (left, right, top, bottom) and center (horizontal & vertical) alignment.
+- **Smart Spacing Gap Snapping**: Automatically detects equidistant spacing between neighboring elements with vibrant magenta/pink (`#FF007A`) spacing lines and pill badge indicators showing exact pixel gap distance.
+
+### 📄 Interactive Vector PDF Export
+- **Selectable & Searchable Text**: Overlays native PDF invisible text layer (`3 Tr`) on top of crisp high-DPI canvas graphics, enabling 100% copy-pasteable and searchable text in any PDF reader.
+- **Clickable Hyperlinks**: Automatically registers PDF clickable annotation links for elements and QR codes with attached hyperlinks.
+
+### 💻 Code Snippet Block
+- **macOS Terminal Window Card**: Sleek code card with 3 window controls (close, minimize, maximize), programming language badge, optional line numbers, and dark/light themes.
+- **Dedicated Editor Modal**: Edit code content, change language (JavaScript, TypeScript, Python, HTML/CSS, Rust, Go, JSON, SQL, etc.), toggle line numbers, and pick color themes directly from the Properties Panel.
+
+### 📱 QR Code Generator via Link
+- **Pure JavaScript ISO/IEC 18004 Engine**: Zero external dependencies, fully offline-ready QR code generation.
+- **Vector SVG Integration**: Generates crisp vector SVG Fabric groups with custom foreground and background colors.
+- **Interactive URL Linking**: Automatically binds hyperlinks to generated QR codes, ensuring export compatibility in interactive PDFs.
+
+### 🌫️ Efek Blur (Visual Blur Filter)
+- **Appearance Blur Slider**: Added smooth 0–40px blur controls in Properties Panel.
+- **Dual Support**: Hardware-accelerated Fabric.js blur filter for images and soft blur shadow rendering for shapes and vector elements.
+
+### 📦 4 New Enterprise & Professional Template Packs
+- **Startup Investor Pitch Deck (Nexus AI)**: Complete 6-slide deck covering Problem, Solution, Market Size, Traction, Team, and The Ask with modern corporate styling and metric callouts.
+- **Creative Agency Portfolio (Atelier Nouveau)**: Design studio portfolio featuring asymmetric masonry layouts, full-bleed images, and editorial typography.
+- **Product Launch / Brand Deck (Aura One)**: Premium hardware/software launch deck with realistic device mockup frames (iPhone & MacBook), feature highlights, technical specifications table, and pricing tiers.
+- **Academic / Research Paper (Latent Geometries)**: Clean academic deck featuring two-column paper layouts, mathematical formulas, empirical benchmark comparison tables, and formal bibliography.
+
+---
+
 ## [2.2.0] - 2026-09-10
 
 ### 🔤 Custom Font Upload & Brand Font Management

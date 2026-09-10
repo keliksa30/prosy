@@ -1,6 +1,7 @@
 import * as fabric from 'fabric';
 import { svg } from '../ui/icons.js';
 import { ELEMENT_DEFS, createElement, findElement } from '../elements/ElementLibrary.js';
+import { createCodeSnippetGroup } from '../tools/CodeSnippetBlock.js';
 
 /**
  * ElementsPanel — the "Elements" sidebar tab: professional pre-built
@@ -95,6 +96,31 @@ export class ElementsPanel {
       reader.readAsText(file);
     });
     
+    const actionsGrid = document.createElement('div');
+    actionsGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 12px;';
+
+    const qrBtn = document.createElement('button');
+    qrBtn.className = 'btn btn-secondary';
+    qrBtn.style.fontSize = '12px';
+    qrBtn.style.justifyContent = 'center';
+    qrBtn.innerHTML = `${svg('QrCode', 14)} QR Code`;
+    qrBtn.addEventListener('click', () => {
+      this.app.showQRCodeDialog && this.app.showQRCodeDialog();
+    });
+
+    const codeBtn = document.createElement('button');
+    codeBtn.className = 'btn btn-secondary';
+    codeBtn.style.fontSize = '12px';
+    codeBtn.style.justifyContent = 'center';
+    codeBtn.innerHTML = `${svg('Code', 14)} Code Snippet`;
+    codeBtn.addEventListener('click', () => {
+      this.insertCodeSnippet();
+    });
+
+    actionsGrid.appendChild(qrBtn);
+    actionsGrid.appendChild(codeBtn);
+
+    host.appendChild(actionsGrid);
     host.appendChild(uploadBtn);
     host.appendChild(fileInput);
 
@@ -207,6 +233,42 @@ export class ElementsPanel {
     } catch (e) {
       console.error('insertElement failed', e);
       this.app.toast?.('Could not add element', true);
+    }
+  }
+
+  insertCodeSnippet(scenePt = null) {
+    const w = 540;
+    const h = 240;
+    let left, top;
+    if (scenePt) {
+      left = scenePt.x - w / 2;
+      top = scenePt.y - h / 2;
+    } else {
+      left = Math.max(40, (this.cm.PAGE_W - w) / 2);
+      top = Math.max(40, (this.cm.PAGE_H - h) / 2);
+    }
+
+    const defaultCode = `// Fetch analytics summary\nasync function getStats() {\n  const res = await fetch('/api/stats');\n  const data = await res.json();\n  return data.totalViews;\n}`;
+    const group = createCodeSnippetGroup({
+      code: defaultCode,
+      lang: 'javascript',
+      theme: 'one-dark',
+      left: Math.round(left),
+      top: Math.round(top),
+      width: w
+    });
+
+    this.canvas.add(group);
+    this.canvas.setActiveObject(group);
+    this.canvas.requestRenderAll();
+    if (this.app.historyManager) this.app.historyManager.saveState();
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+
+    this.app.toast?.('Code snippet added to slide');
+    if (this.app._closeElementsMenu) this.app._closeElementsMenu();
+    if (this.app.closeMobileSheet) this.app.closeMobileSheet();
+    if (this.app.dock && typeof window !== 'undefined' && window.innerWidth > 768) {
+      this.app.dock.show('design');
     }
   }
 }

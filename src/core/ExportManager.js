@@ -123,10 +123,13 @@ export class ExportManager {
         } catch (e) {
           console.error('Failed to render page for PDF export', e);
         }
-        const imgData = sc.toDataURL({ format: 'jpeg', quality: 0.9 });
+        const imgData = sc.toDataURL({ format: 'jpeg', quality: 0.95 });
         if (i > 0) pdf.addPage([W, H], 'landscape');
         pdf.setPage(i + 1);
         pdf.addImage(imgData, 'JPEG', 0, 0, W, H);
+
+        // Overlay selectable, copyable, searchable vector text
+        this._overlaySelectableText(pdf, sc);
 
         const links = this._collectHyperlinks(page.canvas_json);
         for (const link of links) {
@@ -134,10 +137,50 @@ export class ExportManager {
           pdf.link(link.x, link.y, link.w, link.h, { url: link.url });
         }
       }
-      pdf.save('prosy_portfolio.pdf');
+      pdf.save((this.app.projectName || 'prosy_portfolio') + '.pdf');
     } finally {
       sc.dispose && sc.dispose();
     }
+  }
+
+  /**
+   * Overlays invisible selectable text atop the high-res canvas render.
+   * Enables native PDF text selection, clipboard copying, and Cmd+F searching.
+   */
+  _overlaySelectableText(pdf, canvas) {
+    if (!canvas) return;
+    const collectText = (objs) => {
+      objs.forEach(obj => {
+        if (!obj || obj.visible === false) return;
+        const type = (obj.type || '').toLowerCase();
+        if (type === 'text' || type === 'i-text' || type === 'textbox') {
+          const text = obj.text || '';
+          if (!text.trim()) return;
+
+          const bound = obj.getBoundingRect ? obj.getBoundingRect() : { left: obj.left, top: obj.top, width: obj.width, height: obj.height };
+          const scaleY = obj.scaleY || 1;
+          const fontSize = (obj.fontSize || 16) * scaleY;
+          pdf.setFontSize(fontSize);
+
+          const lines = text.split('\n');
+          const lineHeight = (obj.lineHeight || 1.16) * fontSize;
+
+          lines.forEach((line, idx) => {
+            if (!line) return;
+            const y = bound.top + (idx + 0.85) * lineHeight;
+            try {
+              pdf.text(line, bound.left, y, { renderingMode: 'invisible' });
+            } catch (err) {
+              // fallback without renderingMode if special font encoding fails
+              pdf.text(line, bound.left, y);
+            }
+          });
+        } else if (type === 'group' && obj.getObjects) {
+          collectText(obj.getObjects());
+        }
+      });
+    };
+    collectText(canvas.getObjects());
   }
 
   /**
