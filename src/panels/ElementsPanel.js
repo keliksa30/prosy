@@ -80,12 +80,20 @@ export class ElementsPanel {
           const zoom = this.cm.getZoom();
           const vp = this.cm.getViewport();
           const pan = this.canvas.viewportTransform;
-          if (vp && pan) {
-            svgObj.set({
-              left: (-pan[4] + vp.offsetWidth / 2) / zoom - (svgObj.width * svgObj.scaleX) / 2,
-              top: (-pan[5] + vp.offsetHeight / 2) / zoom - (svgObj.height * svgObj.scaleY) / 2
-            });
+          const pw = this.cm.PAGE_W || 1920;
+          const ph = this.cm.PAGE_H || 1080;
+          const objW = svgObj.width * (svgObj.scaleX || 1);
+          const objH = svgObj.height * (svgObj.scaleY || 1);
+
+          let left = Math.round((pw - objW) / 2);
+          let top = Math.round((ph - objH) / 2);
+          if (vp && pan && zoom) {
+            const vpLeft = (-pan[4] + vp.offsetWidth / 2) / zoom - objW / 2;
+            const vpTop = (-pan[5] + vp.offsetHeight / 2) / zoom - objH / 2;
+            if (vpLeft >= 40 && vpLeft <= pw - objW - 40) left = Math.round(vpLeft);
+            if (vpTop >= 40 && vpTop <= ph - objH - 40) top = Math.round(vpTop);
           }
+          svgObj.set({ left, top });
 
           this.canvas.add(svgObj);
           this.canvas.setActiveObject(svgObj);

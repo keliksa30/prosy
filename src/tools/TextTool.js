@@ -88,11 +88,14 @@ export class TextTool extends BaseTool {
     this.canvas.add(obj);
     this.canvas.setActiveObject(obj);
     this.canvas.requestRenderAll();
-    try {
-      obj.enterEditing();
-      obj.selectAll();
-    } catch (e) {
-      console.warn('Could not enter text editing automatically', e);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    if (!isMobile) {
+      try {
+        obj.enterEditing();
+        obj.selectAll();
+      } catch (e) {
+        console.warn('Could not enter text editing automatically', e);
+      }
     }
   }
 
@@ -173,7 +176,7 @@ export class TextTool extends BaseTool {
 
   handleMouseDown(o) {
     if (this.toolManager.currentTool !== 'text') return;
-    if (o.e.button !== 0) return;
+    if (o.e && o.e.button !== undefined && o.e.button !== 0) return;
     const pointer = o.scenePoint || this.canvas.getScenePoint(o.e);
     this.isDown = true;
     this.created = null;

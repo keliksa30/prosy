@@ -1698,24 +1698,27 @@ export class EditorApp {
     const textOptions = [
       {
         title: 'Add a heading',
-        sub: '56px bold title text',
+        sub: '56px bold title text (sentuh kanvas)',
         fontSize: 56,
         fontWeight: 'bold',
-        text: 'Heading'
+        text: 'Heading',
+        mode: 'text'
       },
       {
         title: 'Add a subheading',
-        sub: '32px medium subtitle text',
+        sub: '32px medium subtitle text (sentuh kanvas)',
         fontSize: 32,
         fontWeight: '600',
-        text: 'Subheading'
+        text: 'Subheading',
+        mode: 'text'
       },
       {
         title: 'Add body text',
-        sub: '20px regular paragraph text',
+        sub: '20px paragraph text (sentuh & tarik lebar di kanvas)',
         fontSize: 20,
         fontWeight: 'normal',
-        text: 'Tap to write body text. Double-tap to edit on mobile.'
+        text: 'Tap to write body text. Double-tap to edit on mobile.',
+        mode: 'paragraph'
       }
     ];
 
@@ -1732,8 +1735,16 @@ export class EditorApp {
       `;
       card.onclick = () => {
         this.closeMobileSheet();
-        this.addTextToCenter(opt);
-        this.toast(`${opt.title} added`);
+        const textTool = this.toolManager.tools['text'];
+        if (textTool) {
+          textTool.mode = opt.mode;
+        }
+        this.toolManager.setTool('text');
+        if (opt.mode === 'paragraph') {
+          this.showMobileToolBanner('Sentuh & tarik di kanvas untuk mengatur lebar paragraf');
+        } else {
+          this.showMobileToolBanner(`Sentuh kanvas untuk menempatkan ${opt.title.toLowerCase()}`);
+        }
       };
       container.appendChild(card);
     });
@@ -1895,13 +1906,51 @@ export class EditorApp {
       `;
       btn.onclick = () => {
         this.closeMobileSheet();
-        this.addShapeToCenter(s.id);
-        this.toast(`${s.label} added`);
+        this.toolManager.setShapeType(s.id);
+        this.toolManager.setTool('shape');
+        this.showMobileToolBanner(`Sentuh & tarik di kanvas untuk menggambar ${s.label}`);
       };
       container.appendChild(btn);
     });
 
     this.openMobileSheet('Choose Shape', container);
+  }
+
+  showMobileToolBanner(message) {
+    if (typeof window === 'undefined' || window.innerWidth > 768) {
+      this.toast(message);
+      return;
+    }
+    let banner = document.getElementById('mobile-tool-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'mobile-tool-banner';
+      banner.className = 'mobile-tool-banner';
+      document.body.appendChild(banner);
+    }
+    banner.innerHTML = `
+      <span class="mobile-tool-banner-text">${message}</span>
+      <button class="mobile-tool-banner-cancel" id="mobile-tool-banner-cancel">Batal</button>
+    `;
+    banner.style.display = 'flex';
+    document.getElementById('mobile-tool-banner-cancel')?.addEventListener('click', () => {
+      this.toolManager.setTool('select');
+      this.hideMobileToolBanner();
+    });
+
+    // Auto-hide when tool switches back to select
+    const onToolChanged = (e) => {
+      if (e.detail?.tool === 'select') {
+        this.hideMobileToolBanner();
+        document.removeEventListener('prosy:toolChanged', onToolChanged);
+      }
+    };
+    document.addEventListener('prosy:toolChanged', onToolChanged);
+  }
+
+  hideMobileToolBanner() {
+    const banner = document.getElementById('mobile-tool-banner');
+    if (banner) banner.style.display = 'none';
   }
 
   openMobilePhotosSheet() {
@@ -1974,7 +2023,7 @@ export class EditorApp {
           <div>
             <div style="display:flex;align-items:center;gap:8px;">
               <h3 style="margin:0;font-size:18px;font-weight:700;color:var(--text-primary);font-family:var(--font-headline);">Prosy</h3>
-              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.3.2</span>
+              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.4.1</span>
             </div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Modern Page-Based Visual Designer for Portfolios & Pitch Decks</div>
           </div>
@@ -2121,13 +2170,21 @@ export class EditorApp {
         const vp = this.canvasManager.getViewport();
         const pan = canvas ? canvas.viewportTransform : [1, 0, 0, 1, 0, 0];
         const zoom = this.canvasManager.getZoom();
+        const pw = this.canvasManager.PAGE_W || 1920;
+        const ph = this.canvasManager.PAGE_H || 1080;
         const size = 200;
 
-        let left = 200;
-        let top = 200;
-        if (vp && pan) {
-          left = (-pan[4] + vp.offsetWidth / 2) / zoom - size / 2;
-          top = (-pan[5] + vp.offsetHeight / 2) / zoom - size / 2;
+        let left = Math.round((pw - size) / 2);
+        let top = Math.round((ph - size) / 2);
+        if (vp && pan && zoom) {
+          const vpLeft = (-pan[4] + vp.offsetWidth / 2) / zoom - size / 2;
+          const vpTop = (-pan[5] + vp.offsetHeight / 2) / zoom - size / 2;
+          if (vpLeft >= 40 && vpLeft <= pw - size - 40) {
+            left = Math.round(vpLeft);
+          }
+          if (vpTop >= 40 && vpTop <= ph - size - 40) {
+            top = Math.round(vpTop);
+          }
         }
 
         const qrImg = await QRCodeGenerator.createFabricQR(text, {

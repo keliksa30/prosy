@@ -963,10 +963,17 @@ input[type='range'].range:active::-webkit-slider-thumb { transform: scale(1.3); 
     height: 100% !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
-    display: flex !important;
+    display: flex;
     flex-direction: column !important;
     overflow: hidden !important;
     z-index: 9999 !important;
+  }
+  #welcome-screen.hidden,
+  #welcome-screen[style*="display: none"],
+  #welcome-screen[style*="display:none"] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
   }
   .welcome-topbar {
     padding: 0 16px;

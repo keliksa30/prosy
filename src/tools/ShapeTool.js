@@ -44,7 +44,7 @@ export class ShapeTool extends BaseTool {
 
   handleMouseDown(o) {
     if (this.toolManager.currentTool !== 'shape') return;
-    if (o.e.button !== 0) return;
+    if (o.e && o.e.button !== undefined && o.e.button !== 0) return;
     if (this.isDrawing) return; // ignore stray double-downs
     this.isDrawing = true;
     this._created = false;

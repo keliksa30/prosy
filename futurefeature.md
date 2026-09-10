@@ -24,3 +24,13 @@ Fitur-fitur teknis yang akan meningkatkan *Quality of Life* (QoL) pengguna profe
 ## 3. Interaktivitas & Presentasi
 *   **Page Transitions & Micro-animations**: Menambahkan opsi animasi sederhana saat pergantian halaman di *Presentation Mode* (misalnya: *Fade, Slide, Zoom, Magic Move*). 
 *   **Embeds & iFrames**: Memungkinkan pengguna memasukkan elemen eksternal seperti video YouTube, prototipe interaktif Figma, atau pemutar musik langsung ke dalam kanvas.
+
+## 4. Quick Canvas Presets & Fitur Grafis (Avnac-Inspired)
+Dokumentasi lengkap dan analisis mendalam dapat dilihat pada [feature_recommendations.md](file:///Volumes/SUNFYRE/PROJECTAN/AGY/Portosip/Prosy/feature_recommendations.md).
+*   **Quick Canvas Presets & Non-Distortion Adaptation**: Pilihan rasio instan (16:9 Slide, 1:1 Square, 9:16 Story/Reels, 4:5 Feed, A4 Document) dengan algoritma Smart Fit & Uniform Scaling sehingga template dan elemen tidak mengalami distorsi/peot.
+*   **Image Adjustment Suite**: Pengaturan foto visual (Brightness, Contrast, Saturation, Hue Rotation, Vignette).
+*   **Image Masking & Shape Frames**: Memasukkan gambar ke dalam shape geometri dengan kontrol crop interaktif.
+*   **Stock Assets Explorer**: Integrasi pencarian foto Unsplash/Pexels dan ikon Lucide langsung di editor.
+*   **Freehand Pencil & Pen Tool**: Fitur corat-coret tangan dan kurva bezier.
+*   **Native SVG Importer & Parser**: Impor file SVG eksternal menjadi layer vektor yang warnanya dapat diedit per segmen.
+

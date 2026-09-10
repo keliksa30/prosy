@@ -128,6 +128,19 @@ export class CanvasManager {
       resizeTimer = setTimeout(() => {
         const curW = typeof window !== 'undefined' ? window.innerWidth : 0;
         const curH = typeof window !== 'undefined' ? window.innerHeight : 0;
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
+        // On mobile, only auto-fit if the screen orientation actually changed (width changed significantly).
+        // Vertical URL bar collapse/expand or keyboard opening should NEVER force a canvas reset!
+        if (isMobile) {
+          if (Math.abs(curW - lastW) > 50) {
+            lastW = curW;
+            lastH = curH;
+            this.fitToScreen(true);
+          }
+          return;
+        }
+
         if (Math.abs(curW - lastW) > 12 || Math.abs(curH - lastH) > 40) {
           lastW = curW;
           lastH = curH;

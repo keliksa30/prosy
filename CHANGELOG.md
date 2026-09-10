@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.1] - 2026-09-10
+
+### Mobile Stability & Drag-to-Create
+- **Mobile Unresponsive Button Fix**: Fixed high-priority bug where `#welcome-screen` had `display: flex !important` in mobile media query, preventing it from closing and invisibly intercepting all mobile button taps. Added explicit hiding styles and pointer-event safety to bottom sheets.
+- **QR Code Mobile Placement**: Clamped QR Code generator and SVG insert coordinates to page boundaries (`PAGE_W` & `PAGE_H`) rather than raw viewport height, ensuring QR codes land directly in center of slide canvas rather than below the view.
+- **Drag-to-Create for Shapes on Mobile**: Selecting a shape from "Add to Slide" on mobile now activates `ShapeTool` and displays a floating guidance banner, enabling users to touch and drag their finger across the canvas to draw and size shapes in real-time.
+- **Drag-to-Create for Paragraph Text**: Selecting "Add body text" on mobile activates `TextTool` paragraph mode, allowing dragging to define the text box width with a live dashed ghost preview.
+- **Auto-Refresh and Pull-to-Refresh Elimination**: Completely prevented accidental page reloads on mobile by setting `overscroll-behavior: none !important` on `html`, `body`, `#app`, and `.workspace`, and configuring `maximum-scale=1.0, user-scalable=no` in viewport meta.
+- **Canvas Re-Fit Snapping Prevention**: Prevented spurious canvas re-fitting on mobile when the address bar or virtual keyboard changes height by restricting `fitToScreen` only to true screen width orientation changes.
+- **Properties Panel Re-Render Loops**: Standardized all internal `prosy:objectEdited` dispatches to include `{ detail: { source: 'properties' } }`, preventing unwanted panel re-renders and preserving scroll position.
+
+---
+
 ## [2.4.0] - 2026-09-10
 
 ### 🌫️ Figma-Style Gaussian Blur & Background Blur (Frosted Glass)

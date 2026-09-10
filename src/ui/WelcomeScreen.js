@@ -142,13 +142,16 @@ export class WelcomeScreen {
   }
 
   hide() {
-    this.container.style.display = 'none';
+    this.container.classList.add('hidden');
+    this.container.style.setProperty('display', 'none', 'important');
     this.app.projectFileManager.saveDraft(true);
   }
 
   show() {
     this.app.projectFileManager.saveDraft(true);
     this.render();
-    this.container.style.display = 'flex';
+    this.container.classList.remove('hidden');
+    this.container.style.removeProperty('display');
+    this.container.style.setProperty('display', 'flex', 'important');
   }
 }

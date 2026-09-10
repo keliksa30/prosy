@@ -75,6 +75,8 @@ export class PropertiesPanel {
     };
     apply();
     requestAnimationFrame(apply);
+    setTimeout(apply, 30);
+    setTimeout(apply, 100);
   }
 
   _getTargetKey() {
@@ -381,7 +383,7 @@ export class PropertiesPanel {
     canvas.setActiveObject(host);
     canvas.requestRenderAll();
     this.app.historyManager.saveState();
-    document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+    document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: host } }));
     this.render();
   }
 
@@ -666,7 +668,7 @@ export class PropertiesPanel {
     const sizeSlider = slider({
       value: obj.fontSize || 40, min: 6, max: 240, step: 1, format: (v) => `${Math.round(v)} px`,
       onInput: (v) => { obj.set('fontSize', v); this.canvas.requestRenderAll(); },
-      onChange: (v) => { obj.set('fontSize', v); this.app.historyManager.saveState(); document.dispatchEvent(new CustomEvent('prosy:objectEdited')); }
+      onChange: (v) => { obj.set('fontSize', v); this.app.historyManager.saveState(); document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties', target: obj } })); }
     });
     body.appendChild(sizeSlider);
 
@@ -786,7 +788,7 @@ export class PropertiesPanel {
         if (activeSel && activeSel.setCoords) activeSel.setCoords();
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
         renderList();
         this.render();
       } catch (err) {
@@ -856,7 +858,7 @@ export class PropertiesPanel {
             if (activeSel && activeSel.setCoords) activeSel.setCoords();
             this.canvas.requestRenderAll();
             this.app.historyManager.saveState();
-            document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+            document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
             this._closeFontPicker();
             this.render();
           });
@@ -890,7 +892,7 @@ export class PropertiesPanel {
             if (activeSel && activeSel.setCoords) activeSel.setCoords();
             this.canvas.requestRenderAll();
             this.app.historyManager.saveState();
-            document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+            document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
             this._closeFontPicker();
             this.render();
           });
@@ -2361,7 +2363,7 @@ export class PropertiesPanel {
         if (a && a.setCoords) a.setCoords();
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       }
     });
     sizeScrub.style.flex = '1';
@@ -2381,7 +2383,7 @@ export class PropertiesPanel {
         if (a && a.setCoords) a.setCoords();
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
         this.render();
       }
     });
@@ -2400,7 +2402,7 @@ export class PropertiesPanel {
         if (a && a.setCoords) a.setCoords();
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
         this.render();
       }
     });
@@ -2424,7 +2426,7 @@ export class PropertiesPanel {
       textObjs.forEach(t => t.set('fontWeight', nextBold ? 700 : 400));
       this.canvas.requestRenderAll();
       this.app.historyManager.saveState();
-      document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       this.render();
     });
 
@@ -2433,7 +2435,7 @@ export class PropertiesPanel {
       textObjs.forEach(t => t.set('fontStyle', nextItalic ? 'italic' : 'normal'));
       this.canvas.requestRenderAll();
       this.app.historyManager.saveState();
-      document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       this.render();
     });
 
@@ -2442,7 +2444,7 @@ export class PropertiesPanel {
       textObjs.forEach(t => t.set('underline', nextU));
       this.canvas.requestRenderAll();
       this.app.historyManager.saveState();
-      document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+      document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       this.render();
     });
 
@@ -2464,7 +2466,7 @@ export class PropertiesPanel {
         textObjs.forEach(t => t.set('textAlign', v));
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       }
     });
     alignRow.appendChild(alignSeg);
@@ -2497,7 +2499,7 @@ export class PropertiesPanel {
         });
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       }
     });
     cc.style.flex = '1';
@@ -2518,7 +2520,7 @@ export class PropertiesPanel {
         textObjs.forEach(t => t.set('lineHeight', v));
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       }
     });
     const firstLs = Math.round((textObjs[0].charSpacing || 0) / 10);
@@ -2532,7 +2534,7 @@ export class PropertiesPanel {
         textObjs.forEach(t => t.set('charSpacing', v * 10));
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       }
     });
     body.appendChild(this._row('Line height', lh));
@@ -2658,7 +2660,7 @@ export class PropertiesPanel {
       onChange: (v) => {
         objs.forEach(o => o.set('opacity', v / 100));
         this.app.historyManager.saveState();
-        document.dispatchEvent(new CustomEvent('prosy:objectEdited'));
+        document.dispatchEvent(new CustomEvent('prosy:objectEdited', { detail: { source: 'properties' } }));
       }
     });
     scroll.appendChild(this._section('Opacity', op));
