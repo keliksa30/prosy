@@ -1,6 +1,6 @@
 {
-  "name": "temp_vite",
-  "version": "0.0.0",
+  "name": "prosy",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "scripts": {

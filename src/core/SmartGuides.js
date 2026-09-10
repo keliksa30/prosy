@@ -223,16 +223,144 @@ export class SmartGuides {
       }
     }
 
+    // === SMART SPACING (EQUAL GAPS) ===
+    let bestSpacingX = null;
+    let minSpacingDiffX = threshold;
+    let bestSpacingY = null;
+    let minSpacingDiffY = threshold;
+    
+    const validObjects = objects.filter(o => 
+      o !== target && o.visible !== false && o.evented !== false && o.name !== 'Background' && o.name !== 'Bg'
+    );
+
+    for (let i = 0; i < validObjects.length; i++) {
+      for (let j = 0; j < validObjects.length; j++) {
+        if (i === j) continue;
+        const objA = validObjects[i];
+        const objB = validObjects[j];
+        
+        // X-Axis Spacing (Horizontal Gaps)
+        // Check if A and B overlap vertically
+        const aTop = objA.top, aBottom = objA.top + objA.getScaledHeight();
+        const bTop = objB.top, bBottom = objB.top + objB.getScaledHeight();
+        if (!(aBottom < bTop || aTop > bBottom)) {
+          const aRight = objA.left + objA.getScaledWidth();
+          const gapX = objB.left - aRight;
+          
+          if (gapX > 0) {
+            // Target is to the right of B
+            const targetLeftExpected = objB.left + objB.getScaledWidth() + gapX;
+            const diffRight = Math.abs(tLeft - targetLeftExpected);
+            if (diffRight < minSpacingDiffX) {
+              minSpacingDiffX = diffRight;
+              const yCenter = (Math.max(aTop, bTop) + Math.min(aBottom, bBottom)) / 2;
+              bestSpacingX = {
+                snapLeft: targetLeftExpected,
+                lines: [
+                  { x1: aRight, y1: yCenter, x2: objB.left, y2: yCenter, label: Math.round(gapX) },
+                  { x1: objB.left + objB.getScaledWidth(), y1: yCenter, x2: targetLeftExpected, y2: yCenter, label: Math.round(gapX) }
+                ]
+              };
+            }
+            // Target is to the left of A
+            const targetRightExpected = objA.left - gapX;
+            const expectedLeft = targetRightExpected - tWidth;
+            const diffLeft = Math.abs(tLeft - expectedLeft);
+            if (diffLeft < minSpacingDiffX) {
+              minSpacingDiffX = diffLeft;
+              const yCenter = (Math.max(aTop, bTop) + Math.min(aBottom, bBottom)) / 2;
+              bestSpacingX = {
+                snapLeft: expectedLeft,
+                lines: [
+                  { x1: expectedLeft + tWidth, y1: yCenter, x2: objA.left, y2: yCenter, label: Math.round(gapX) },
+                  { x1: aRight, y1: yCenter, x2: objB.left, y2: yCenter, label: Math.round(gapX) }
+                ]
+              };
+            }
+          }
+        }
+
+        // Y-Axis Spacing (Vertical Gaps)
+        // Check if A and B overlap horizontally
+        const aLeft = objA.left, aRight = objA.left + objA.getScaledWidth();
+        const bLeft = objB.left, bRight = objB.left + objB.getScaledWidth();
+        if (!(aRight < bLeft || aLeft > bRight)) {
+          const aBottom = objA.top + objA.getScaledHeight();
+          const gapY = objB.top - aBottom;
+          
+          if (gapY > 0) {
+            // Target is below B
+            const targetTopExpected = objB.top + objB.getScaledHeight() + gapY;
+            const diffBottom = Math.abs(tTop - targetTopExpected);
+            if (diffBottom < minSpacingDiffY) {
+              minSpacingDiffY = diffBottom;
+              const xCenter = (Math.max(aLeft, bLeft) + Math.min(aRight, bRight)) / 2;
+              bestSpacingY = {
+                snapTop: targetTopExpected,
+                lines: [
+                  { x1: xCenter, y1: aBottom, x2: xCenter, y2: objB.top, label: Math.round(gapY) },
+                  { x1: xCenter, y1: objB.top + objB.getScaledHeight(), x2: xCenter, y2: targetTopExpected, label: Math.round(gapY) }
+                ]
+              };
+            }
+            // Target is above A
+            const targetBottomExpected = objA.top - gapY;
+            const expectedTop = targetBottomExpected - tHeight;
+            const diffTop = Math.abs(tTop - expectedTop);
+            if (diffTop < minSpacingDiffY) {
+              minSpacingDiffY = diffTop;
+              const xCenter = (Math.max(aLeft, bLeft) + Math.min(aRight, bRight)) / 2;
+              bestSpacingY = {
+                snapTop: expectedTop,
+                lines: [
+                  { x1: xCenter, y1: expectedTop + tHeight, x2: xCenter, y2: objA.top, label: Math.round(gapY) },
+                  { x1: xCenter, y1: aBottom, x2: xCenter, y2: objB.top, label: Math.round(gapY) }
+                ]
+              };
+            }
+          }
+        }
+      }
+    }
+
     let didSnap = false;
     let svgLines = '';
 
-    if (bestV) {
+    // Prefer edge alignment snaps over spacing snaps if they are very close, 
+    // or vice versa depending on priority. We'll use spacing if it's found.
+    if (bestSpacingX) {
+      target.set({ left: bestSpacingX.snapLeft });
+      didSnap = true;
+      bestSpacingX.lines.forEach(l => {
+        svgLines += `<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${this.color}" stroke-width="1.5" />`;
+        // Draw little end caps
+        svgLines += `<line x1="${l.x1}" y1="${l.y1 - 4}" x2="${l.x1}" y2="${l.y1 + 4}" stroke="${this.color}" stroke-width="1.5" />`;
+        svgLines += `<line x1="${l.x2}" y1="${l.y2 - 4}" x2="${l.x2}" y2="${l.y2 + 4}" stroke="${this.color}" stroke-width="1.5" />`;
+        // Draw label
+        const cx = (l.x1 + l.x2) / 2;
+        svgLines += `<rect x="${cx - 12}" y="${l.y1 - 10}" width="24" height="14" fill="${this.color}" rx="3" />`;
+        svgLines += `<text x="${cx}" y="${l.y1 + 0.5}" fill="white" font-size="9" font-family="sans-serif" font-weight="bold" text-anchor="middle">${l.label}</text>`;
+      });
+    } else if (bestV) {
       target.set({ left: bestV.snapLeft });
       didSnap = true;
       svgLines += `<line x1="${bestV.lineX}" y1="${bestV.y1}" x2="${bestV.lineX}" y2="${bestV.y2}" stroke="${this.color}" stroke-width="1.2" stroke-dasharray="4,3" />`;
     }
 
-    if (bestH) {
+    if (bestSpacingY) {
+      target.set({ top: bestSpacingY.snapTop });
+      didSnap = true;
+      bestSpacingY.lines.forEach(l => {
+        svgLines += `<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${this.color}" stroke-width="1.5" />`;
+        // Draw little end caps
+        svgLines += `<line x1="${l.x1 - 4}" y1="${l.y1}" x2="${l.x1 + 4}" y2="${l.y1}" stroke="${this.color}" stroke-width="1.5" />`;
+        svgLines += `<line x1="${l.x2 - 4}" y1="${l.y2}" x2="${l.x2 + 4}" y2="${l.y2}" stroke="${this.color}" stroke-width="1.5" />`;
+        // Draw label
+        const cy = (l.y1 + l.y2) / 2;
+        svgLines += `<rect x="${l.x1 + 6}" y="${cy - 7}" width="24" height="14" fill="${this.color}" rx="3" />`;
+        svgLines += `<text x="${l.x1 + 18}" y="${cy + 3.5}" fill="white" font-size="9" font-family="sans-serif" font-weight="bold" text-anchor="middle">${l.label}</text>`;
+      });
+    } else if (bestH) {
       target.set({ top: bestH.snapTop });
       didSnap = true;
       svgLines += `<line x1="${bestH.x1}" y1="${bestH.lineY}" x2="${bestH.x2}" y2="${bestH.lineY}" stroke="${this.color}" stroke-width="1.2" stroke-dasharray="4,3" />`;

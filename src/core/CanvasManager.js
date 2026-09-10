@@ -1,6 +1,7 @@
 import * as fabric from 'fabric';
 import { installRadiusControls } from './RadiusControl.js';
 import { SmartGuides } from './SmartGuides.js';
+import { PathEditMode } from './PathEditMode.js';
 
 const RULER = 18; // px chrome strip for the rulers
 
@@ -113,6 +114,7 @@ export class CanvasManager {
     this.setupRulers();
     this.setupDragAndDrop();
     this.smartGuides = new SmartGuides(this);
+    this.pathEditMode = new PathEditMode(this);
 
     window.addEventListener('resize', () => this.fitToScreen(true));
     return this.canvas;

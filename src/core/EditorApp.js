@@ -12,14 +12,17 @@ import { HandTool } from '../tools/HandTool.js';
 import { ShapeTool } from '../tools/ShapeTool.js';
 import { TextTool } from '../tools/TextTool.js';
 import { ImageTool } from '../tools/ImageTool.js';
+import { PenTool } from '../tools/PenTool.js';
 
 import { FilmstripPanel } from '../panels/FilmstripPanel.js';
 import { PropertiesPanel } from '../panels/PropertiesPanel.js';
 import { LayersPanel } from '../panels/LayersPanel.js';
+import { ThemePanel } from '../panels/ThemePanel.js';
 import { IconsPanel } from '../panels/IconsPanel.js';
 import { ElementsPanel } from '../panels/ElementsPanel.js';
 import { PhotosPanel } from '../panels/PhotosPanel.js';
 import { PresentationMode } from './PresentationMode.js';
+import { ThemeManager } from './ThemeManager.js';
 
 import { TemplateManager } from '../templates/TemplateManager.js';
 import { TemplateChooser } from '../ui/TemplateChooser.js';
@@ -70,6 +73,7 @@ export class EditorApp {
     this.exportManager = new ExportManager(this);
     this.exportSettingsModal = new ExportSettingsModal(this);
     this.presentationMode = new PresentationMode(this);
+    this.themeManager = new ThemeManager(this);
 
     // ---------- templates ----------
     this.templateManager = new TemplateManager(this);
@@ -83,11 +87,13 @@ export class EditorApp {
     this.panels.filmstrip = new FilmstripPanel(this);
     this.panels.properties = new PropertiesPanel(this);
     this.panels.layers = new LayersPanel(this);
+    this.panels.theme = new ThemePanel(this);
     this.panels.icons = new IconsPanel(this);
     this.panels.elements = new ElementsPanel(this);
     this.panels.photos = new PhotosPanel(this);
     this.panels.properties.mount(document.getElementById('dock-body-design'));
     this.panels.layers.mount(document.getElementById('dock-body-layers'));
+    this.panels.theme.mount(document.getElementById('dock-body-theme'));
     this.panels.icons.mount(document.getElementById('icons-popover'));
     this.panels.elements.mount(document.getElementById('elements-popover'));
     this.panels.photos.mount(document.getElementById('photos-popover'));
@@ -99,6 +105,7 @@ export class EditorApp {
     this.toolManager.registerTool('text', new TextTool());
     this.toolManager.registerTool('shape', new ShapeTool('rect'));
     this.toolManager.registerTool('image', new ImageTool());
+    this.toolManager.registerTool('pen', new PenTool());
     this.toolManager.setTool('select');
 
     // ---------- keyboard ----------
@@ -179,6 +186,9 @@ export class EditorApp {
           <button class="btn btn-ghost appbar-btn desktop-only" id="btn-open" title="Open a .prs project file">
             ${svg('FolderOpen', 15)} Open
           </button>
+          <button class="btn btn-ghost appbar-btn desktop-only" id="btn-about" title="About Prosy">
+            ${svg('Info', 14)} About
+          </button>
           <button class="btn btn-primary appbar-btn" id="btn-export" title="Export & save (Cmd/Ctrl+E)">
             ${svg('Download', 15)} <span class="desktop-only">Export</span>
           </button>
@@ -217,6 +227,10 @@ export class EditorApp {
 
         <button class="tool-btn" data-tool="image" title="Insert image">
           ${svg('Image', 19)}<span>Image</span>
+        </button>
+        
+        <button class="tool-btn" data-tool="pen" title="Pen tool (P)">
+          ${svg('PenTool', 19)}<span>Pen</span>
         </button>
 
         <div class="shape-drop-wrap" id="icons-drop-wrap">
@@ -269,10 +283,14 @@ export class EditorApp {
           <button class="dock-tab" data-tab="layers" title="Layers">
             ${svg('Layers', 15)}<span>Layers</span>
           </button>
+          <button class="dock-tab" data-tab="theme" title="Theme">
+            ${svg('Palette', 15)}<span>Theme</span>
+          </button>
         </div>
         <div class="dock-body">
           <div class="dock-body-pane active" id="dock-body-design"></div>
           <div class="dock-body-pane" id="dock-body-layers"></div>
+          <div class="dock-body-pane" id="dock-body-theme"></div>
         </div>
       </div>
     </div>
@@ -293,7 +311,7 @@ export class EditorApp {
         </div>
       </div>
       <div class="status-hints">
-        <span>Click to select</span>·<span><b>T</b> text</span>·<span><b>R</b> shape</span>·<span><b>⌘D</b> duplicate</span>·<span><b>⌘G</b> group</span>·<span>Right-click for more</span>·<span id="btn-shortcuts" style="cursor:pointer;text-decoration:underline;color:var(--text-secondary);">Shortcuts</span>
+        <span>Click to select</span>·<span><b>T</b> text</span>·<span><b>R</b> shape</span>·<span><b>⌘D</b> duplicate</span>·<span><b>⌘G</b> group</span>·<span>Right-click for more</span>·<span id="btn-shortcuts" style="cursor:pointer;text-decoration:underline;color:var(--text-secondary);">Shortcuts</span>·<span id="btn-about-status" style="cursor:pointer;text-decoration:underline;color:var(--text-secondary);">About</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="save-indicator" id="save-indicator">${svg('Cloud', 12)} Saved</span>
@@ -438,6 +456,10 @@ export class EditorApp {
     document.getElementById('btn-export').onclick = () => this.exportSettingsModal.show();
     document.getElementById('btn-open').onclick = () => this.projectFileManager.triggerLoad();
     document.getElementById('btn-shortcuts').onclick = () => this.showShortcuts();
+    const aboutBtn = document.getElementById('btn-about');
+    if (aboutBtn) aboutBtn.onclick = () => this.showAbout();
+    const aboutStatus = document.getElementById('btn-about-status');
+    if (aboutStatus) aboutStatus.onclick = () => this.showAbout();
 
     // zoom controls
     document.getElementById('btn-zoom-in').onclick = () => this.canvasManager.setZoom(Math.min(200, Math.round(this.canvasManager.getZoom() * 100) + 10), this._zoomCenter());
@@ -685,9 +707,10 @@ export class EditorApp {
     const tabs = document.querySelectorAll('.dock-tab');
     const panes = {
       design: document.getElementById('dock-body-design'),
-      layers: document.getElementById('dock-body-layers')
+      layers: document.getElementById('dock-body-layers'),
+      theme: document.getElementById('dock-body-theme')
     };
-    const active = { design: true, layers: false };
+    const active = { design: true, layers: false, theme: false };
     const show = (name) => {
       Object.keys(active).forEach(k => { active[k] = k === name; });
       tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -698,6 +721,7 @@ export class EditorApp {
       // refresh on show
       if (name === 'design' && this.panels.properties) this.panels.properties.render();
       if (name === 'layers' && this.panels.layers) this.panels.layers.render();
+      if (name === 'theme' && this.panels.theme) this.panels.theme.render();
     };
     tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.tab)));
     this.dock = { show, panes };
@@ -1757,6 +1781,53 @@ export class EditorApp {
       </div>
       <div style="margin-top:14px;font-size:12px;color:var(--text-muted);">Zoom: scroll with Ctrl/Cmd held (pinch on trackpad). Drag with Space or middle mouse to pan.</div>`;
     const m = new Modal('shortcuts-modal', 'Keyboard shortcuts', html);
+    m.render();
+    m.open();
+  }
+
+  showAbout() {
+    const html = `
+      <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;color:var(--text-secondary);max-height:68vh;overflow-y:auto;padding-right:4px;">
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:10px;">
+          <img src="/favicon.svg" alt="Prosy" width="44" height="44" style="border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <h3 style="margin:0;font-size:18px;font-weight:700;color:var(--text-primary);font-family:var(--font-headline);">Prosy</h3>
+              <span style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--accent);color:#fff;">v2.1.0</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Modern Page-Based Visual Designer for Portfolios & Pitch Decks</div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">✨ Highlight Features</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
+              <strong style="color:var(--text-primary);font-size:12.5px;">🎨 Global Theme & Design System</strong>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Curated color palettes (Neo Studio, Emerald Luxury, etc.), real-time token synchronization across all slides, smart restyling ("Apply to Page"), and palette shuffling.</div>
+            </div>
+            <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
+              <strong style="color:var(--text-primary);font-size:12.5px;">✒️ Figma-Style Bezier Pen Tool & Vector Edit</strong>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Draw smooth vector paths with click-drag tangent handles, live cubic bezier curve previews, loop snap closure, and direct vector node editing.</div>
+            </div>
+            <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
+              <strong style="color:var(--text-primary);font-size:12.5px;">🧩 SVG Upload with Live Color Editing</strong>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Upload custom vector illustrations and icons with dynamic color swatch controls in the Properties Panel.</div>
+            </div>
+            <div style="padding:8px 12px;background:var(--bg-raised);border:1px solid var(--border-color);border-radius:8px;">
+              <strong style="color:var(--text-primary);font-size:12.5px;">📄 100% Native Editable PPTX Export</strong>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Decompose canvas layouts into genuine PowerPoint shapes and textboxes that you can re-type and customize in Keynote, PowerPoint, or Google Slides.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border-color);font-size:12px;">
+          <span>Open Source on <a href="https://github.com/keliksa30/prosy" target="_blank" rel="noreferrer" style="color:var(--text-accent);text-decoration:none;font-weight:600;">GitHub</a></span>
+          <span style="color:var(--text-muted);">Crafted with ❤️ by keliksa30</span>
+        </div>
+      </div>
+    `;
+    const m = new Modal('about-modal', 'About Prosy', html);
     m.render();
     m.open();
   }

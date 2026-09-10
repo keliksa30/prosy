@@ -33,7 +33,12 @@ export class TemplateManager {
         import('./data/pack-rayo-fashion.js'),
         import('./data/pack-dsm-kinetic.js'),
         import('./data/pack-persona-folio.js'),
-        import('./data/pack-lumina-folio.js')
+        import('./data/pack-lumina-folio.js'),
+        import('./data/pack-apex-minimal.js'),
+        import('./data/pack-codedark.js'),
+        import('./data/pack-editorial.js'),
+        import('./data/pack-chroma.js'),
+        import('./data/pack-executive.js')
       ]);
       this.packs = mods.map(m => m.default || Object.values(m).find(v => v && v.id && v.pages));
       this.packs = this.packs.filter(Boolean);

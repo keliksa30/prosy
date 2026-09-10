@@ -787,8 +787,21 @@ export class PropertiesPanel {
       const cur = obj.fill && /^#/.test(String(obj.fill)) ? String(obj.fill) : FILL_DEFAULTS[obj.type] || '#7b46f8';
       const cc = colorControl({
         value: cur,
-        onInput: (c) => { obj.set('fill', c); this.canvas.requestRenderAll(); },
-        onChange: (c) => this._commitLive(obj, { fill: c })
+        themeManager: this.app.themeManager,
+        themeToken: obj.themeColor?.fill || null,
+        onThemeChange: (token) => {
+          if (token) this.app.themeManager.bindObjectToTheme(obj, 'fill', token);
+          else this.app.themeManager.unbindObjectFromTheme(obj, 'fill');
+          this.render();
+        },
+        onInput: (c) => { 
+          this.app.themeManager.unbindObjectFromTheme(obj, 'fill');
+          obj.set('fill', c); this.canvas.requestRenderAll(); 
+        },
+        onChange: (c) => { 
+          this.app.themeManager.unbindObjectFromTheme(obj, 'fill');
+          this._commitLive(obj, { fill: c }); 
+        }
       });
       cc.style.flex = '1';
       const none = document.createElement('button');
@@ -989,8 +1002,21 @@ export class PropertiesPanel {
     const cur = obj.stroke && String(obj.stroke).startsWith('#') ? String(obj.stroke) : '#000000';
     const cc = colorControl({
       value: cur,
-      onInput: (c) => { obj.set('stroke', c); this.canvas.requestRenderAll(); },
-      onChange: (c) => this._commitLive(obj, { stroke: c })
+      themeManager: this.app.themeManager,
+      themeToken: obj.themeColor?.stroke || null,
+      onThemeChange: (token) => {
+        if (token) this.app.themeManager.bindObjectToTheme(obj, 'stroke', token);
+        else this.app.themeManager.unbindObjectFromTheme(obj, 'stroke');
+        this.render();
+      },
+      onInput: (c) => { 
+        this.app.themeManager.unbindObjectFromTheme(obj, 'stroke');
+        obj.set('stroke', c); this.canvas.requestRenderAll(); 
+      },
+      onChange: (c) => { 
+        this.app.themeManager.unbindObjectFromTheme(obj, 'stroke');
+        this._commitLive(obj, { stroke: c }); 
+      }
     });
     cc.style.flex = '1';
     cc.style.minWidth = '0';
@@ -1603,12 +1629,27 @@ export class PropertiesPanel {
     const curColor = textObjs[0].fill && /^#/.test(String(textObjs[0].fill)) ? String(textObjs[0].fill) : '#0f172a';
     const cc = colorControl({
       value: curColor,
+      themeManager: this.app.themeManager,
+      themeToken: textObjs[0].themeColor?.fill || null,
+      onThemeChange: (token) => {
+        textObjs.forEach(t => {
+          if (token) this.app.themeManager.bindObjectToTheme(t, 'fill', token);
+          else this.app.themeManager.unbindObjectFromTheme(t, 'fill');
+        });
+        this.render();
+      },
       onInput: (c) => {
-        textObjs.forEach(t => t.set('fill', c));
+        textObjs.forEach(t => {
+          this.app.themeManager.unbindObjectFromTheme(t, 'fill');
+          t.set('fill', c);
+        });
         this.canvas.requestRenderAll();
       },
       onChange: (c) => {
-        textObjs.forEach(t => t.set('fill', c));
+        textObjs.forEach(t => {
+          this.app.themeManager.unbindObjectFromTheme(t, 'fill');
+          t.set('fill', c);
+        });
         this.canvas.requestRenderAll();
         this.app.historyManager.saveState();
         document.dispatchEvent(new CustomEvent('prosy:objectEdited'));

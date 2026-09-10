@@ -22,6 +22,22 @@
 
 ## ✨ Key Features
 
+### 🎨 Global Theme & Design System (Theme Manager)
+- **1-Click Curated Palettes**: Instantly theme your entire deck with professionally curated palettes (*Neo Studio, Emerald Luxury, Midnight Indigo, Sunset Coral, Cyber Neon, Clean Minimal, Ocean Breeze, Warm Terracotta*).
+- **Smart Theme Application**: "Apply to Page" and "Apply to All Pages" intelligently binds and recolors shapes, typography, and backgrounds to design system tokens.
+- **Real-Time Token Sync**: Editing any color token dynamically cascades changes across the active canvas and all pages.
+- **Palette Shuffle**: Shuffle color roles across elements for instant creative layout variations.
+
+### ✒️ Figma-Style Bezier Pen Tool & Vector Edit Mode
+- **Interactive Tangent Handles**: Click-and-drag to pull out mirrored Bezier handles (`cpIn`, `cpOut`) with real-time tangent guides and control dots.
+- **Live Curve Previews**: Smooth cubic Bezier curves (`C`) follow the cursor dynamically before committing the point.
+- **Snap Loop Closure**: Approaching the start node highlights a green snap indicator to close vector shapes (`Z`).
+- **Dedicated Vector Edit Mode**: Double-click any vector path to inspect anchor squares, adjust curvature, toggle smooth/sharp corners, and delete nodes.
+
+### 🧩 SVG Upload & Live Color Customization
+- **Vector Upload**: Import custom `.svg` vector files and icons directly via the Elements Panel.
+- **Granular Recolor**: Inspect and modify individual fill and stroke colors directly in the Properties Panel.
+
 ### 📄 100% Fully Editable PowerPoint (.pptx) Export
 Unlike standard tools that export flattened image screenshots into slides, **Prosy** decomposes each canvas page into genuine, native PowerPoint objects:
 - **Native Editable Textboxes**: Retains font family (Inter, Space Grotesk, Poppins, etc.), font size, hex colors, bold/italic formatting, and text alignments. Double-click to re-type words in PowerPoint, Apple Keynote, or Google Slides!

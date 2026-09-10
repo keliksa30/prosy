@@ -98,8 +98,8 @@ export class HistoryManager {
 
   _snapshot() {
     try {
-      // keep names + custom (slot/mask metadata) alive across undo steps
-      return JSON.stringify(this.canvas.toJSON(['custom', 'name']));
+      // keep names + custom (slot/mask metadata) + themeColor alive across undo steps
+      return JSON.stringify(this.canvas.toJSON(['custom', 'name', 'themeColor', '_isIcon', '_userLocked', 'id']));
     } catch (e) {
       console.error('History snapshot error', e);
       return null;

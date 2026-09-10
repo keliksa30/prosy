@@ -93,7 +93,7 @@ export class PageManager {
       const canvas = this.canvasManager.getCanvas();
       let json;
       try {
-        json = canvas.toObject(['custom', 'name', '_isIcon', '_userLocked', 'id']); // keep names + custom
+        json = canvas.toObject(['custom', 'name', '_isIcon', '_userLocked', 'id', 'themeColor']); // keep names + custom + themeColor
       } catch (e) {
         json = PageManager.blankJson();
       }

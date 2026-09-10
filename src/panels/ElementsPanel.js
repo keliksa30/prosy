@@ -42,6 +42,62 @@ export class ElementsPanel {
     note.textContent = 'Drag a block onto the page or click to add, then customize with your own content.';
     host.appendChild(note);
 
+    const uploadBtn = document.createElement('button');
+    uploadBtn.className = 'btn btn-secondary';
+    uploadBtn.style.margin = '8px 12px';
+    uploadBtn.style.width = 'calc(100% - 24px)';
+    uploadBtn.innerHTML = `${svg('Upload', 14)} Upload SVG`;
+    
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.svg';
+    fileInput.style.display = 'none';
+    
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const svgText = ev.target.result;
+        fabric.loadSVGFromString(svgText, (objects, options) => {
+          if (!objects || !objects.length) return;
+          const svgObj = fabric.util.groupSVGElements(objects, options);
+          
+          svgObj.set({
+            name: 'SVGUpload',
+            isSvgGroup: true,
+            cornerSize: 8,
+            transparentCorners: false,
+            cornerColor: 'white',
+            cornerStrokeColor: '#007AFF',
+            borderColor: '#007AFF',
+            borderScaleFactor: 2
+          });
+
+          // Center on canvas
+          const zoom = this.cm.getZoom();
+          const vp = this.cm.getViewport();
+          const pan = this.canvas.viewportTransform;
+          if (vp && pan) {
+            svgObj.set({
+              left: (-pan[4] + vp.offsetWidth / 2) / zoom - (svgObj.width * svgObj.scaleX) / 2,
+              top: (-pan[5] + vp.offsetHeight / 2) / zoom - (svgObj.height * svgObj.scaleY) / 2
+            });
+          }
+
+          this.canvas.add(svgObj);
+          this.canvas.setActiveObject(svgObj);
+          this.canvas.requestRenderAll();
+          if (this.app.historyManager) this.app.historyManager.saveState();
+        });
+      };
+      reader.readAsText(file);
+    });
+    
+    host.appendChild(uploadBtn);
+    host.appendChild(fileInput);
+
     const list = document.createElement('div');
     list.className = 'elements-list';
     ELEMENT_DEFS.forEach(def => {

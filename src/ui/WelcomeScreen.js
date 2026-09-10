@@ -34,6 +34,9 @@ export class WelcomeScreen {
           Prosy
         </div>
         <div class="welcome-actions">
+          <button class="btn btn-ghost" id="welcome-about" style="font-size:12px;padding:6px 12px;">
+            ${svg('Info', 14)} About
+          </button>
           <button class="btn btn-ghost" id="welcome-open" style="font-size:12px;padding:6px 12px;">
             ${svg('FolderOpen', 14)} Open .prs
           </button>
@@ -120,6 +123,9 @@ export class WelcomeScreen {
     }
     const newBtn = document.getElementById('btn-new-file');
     if (newBtn) newBtn.onclick = () => this.startBlank();
+
+    const aboutBtn = document.getElementById('welcome-about');
+    if (aboutBtn) aboutBtn.onclick = () => this.app.showAbout();
 
     document.getElementById('welcome-open').onclick = () => {
       this.app.projectFileManager.triggerLoad();
